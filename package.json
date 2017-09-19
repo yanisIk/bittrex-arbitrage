@@ -9,6 +9,7 @@
   "author": "Yanis Ikene",
   "license": "ISC",
   "dependencies": {
+    "async": "^2.5.0",
     "node-bittrex-api": "^0.7.5"
   }
 }
