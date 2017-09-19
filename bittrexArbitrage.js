@@ -79,7 +79,7 @@ function subscribeToPairs() {
                     var baseCoin = coins[0];
                     var coin = coins[1];
                     //If BTC-ETH 
-                    if (baseCoin === "BTC" && coin === "ETH") {
+                    if (data_for.MarketName === 'BTC-ETH') {
                         //PUSH IT TO ALL
                         Object.keys(pairsData).forEach(coin => {
                             pairsData[coin][data_for.MarketName] = data_for;
@@ -182,13 +182,13 @@ function detectArbitrageOpportunity(coin, pairs) {
         const opportunity = {id: Date.now(), baseCoin: "BTC", coin: coin, maxQtyToArbitrage: maxBtcToArbitrage, potentialPercentageWin: potentialPercentageWin, steps: {BUY: {}, SELL: {}, CONVERT: {}}}
 
         console.log(`\n ---------- ARBITRAGE OPPORTUNITY ${opportunity.coin} +${opportunity.potentialPercentageWin.toFixed(4)}% ------------- ${opportunity.id} \n`)
-        // console.log(`BUY ${coin} IN BTC SELL IN ETH WITH A POTENTIAL OF:    +${potentialPercentageWin.toFixed(4)} %`)
-        // console.log(`BTC-${coin}  ASK: ${btcAsk.Quantity} ${coin} @ ${btcAsk.Rate.toFixed(8)} BTC/${coin}   (Max Qty: ${maxQuantityToBuyInBtc.toFixed(5)} BTC) (Type: ${btcAsk.Type})`);
-        // console.log(`ETH-${coin}  BID: ${ethBid.Quantity} ${coin} @ ${ethBid.Rate.toFixed(8)} ETH/${coin}   (Max Qty: ${maxQuantityToSellInEth.toFixed(5)} ETH) (Type: ${ethBid.Type})`);
-        // console.log(`BTC-ETH  ASK: ${btcEthAsk.Quantity} BTC @ ${btcEthAsk.Rate.toFixed(8)} BTC/ETH     (Max Qty: ${maxEthToSell.toFixed(5)} ETH) (Type: ${btcEthAsk.Type})`);
-        // console.log(`Potential Max Benefit:              ${potentialWinInBtc.toFixed(5)} BTC`);
-        // console.log(`Potential Benefit With 0.001 BTC:   ${potentialWinWithOneMilliBitcoin}.toFixed(5) BTC`);
-        // console.log("\n");
+        console.log(`BUY ${coin} IN BTC SELL IN ETH WITH A POTENTIAL OF:    +${potentialPercentageWin.toFixed(4)} %`)
+        console.log(`BTC-${coin}  ASK: ${btcAsk.Quantity} ${coin} @ ${btcAsk.Rate.toFixed(8)} BTC/${coin}   (Max Qty: ${maxQuantityToBuyInBtc.toFixed(5)} BTC) (Type: ${btcAsk.Type})`);
+        console.log(`ETH-${coin}  BID: ${ethBid.Quantity} ${coin} @ ${ethBid.Rate.toFixed(8)} ETH/${coin}   (Max Qty: ${maxQuantityToSellInEth.toFixed(5)} ETH) (Type: ${ethBid.Type})`);
+        console.log(`BTC-ETH  ASK: ${btcEthAsk.Quantity} BTC @ ${btcEthAsk.Rate.toFixed(8)} BTC/ETH     (Max Qty: ${maxEthToSell.toFixed(5)} ETH) (Type: ${btcEthAsk.Type})`);
+        console.log(`Potential Max Benefit:              ${potentialWinInBtc.toFixed(5)} BTC`);
+        console.log(`Potential Benefit With 0.001 BTC:   ${potentialWinWithOneMilliBitcoin}.toFixed(5) BTC`);
+        console.log("\n");
 
         return opportunity;
     }
@@ -410,7 +410,7 @@ async function executeArbitrage(coin, pairs) {
     if (!opportunity) return;
 
     //The queue will handle the next tasks by itself
-    buyAndCheckQueue.push(opportunity);
+    //buyAndCheckQueue.push(opportunity);
     
     
 }
