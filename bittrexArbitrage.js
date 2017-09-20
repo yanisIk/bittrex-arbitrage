@@ -48,7 +48,20 @@ const CONVERT_ORDER_TIMEOUT = 1*1000;
 
 const MIN_PROFIT_PERCENTAGE = 10;
 const MIN_PROFIT_BTC = 0;
-const MAX_BTC_TO_BUY = 0.00000001;
+const MAX_BTC_TO_BUY = 0.0001;
+
+const MAX_AMOUNTS_TO_BUY_BY_PERCENTAGE_PROFIT = {
+    10: 0.0001,
+    20: 0.0001 * 2,
+    30: 0.0001 * 3,
+    40: 0.0001 * 4,
+    50: 0.0001 * 5,
+    60: 0.0001 * 6,
+    70: 0.0001 * 7,
+    80: 0.0001 * 8,
+    90: 0.0001 * 9,
+    100: 0.0001 * 10,
+}
 
 const BUY_CONCURENCY = 100;
 const SELL_CONCURENCY = 100;
@@ -164,6 +177,11 @@ function cancelOrder(orderId) {
 var totalPotentialInvestementInBtc = 0
 var totalPotentialProfitInBtc = 0;
 var totalPotentialProfitInBtc_MAX_BTC_TO_BUY = 0;
+
+setInterval(() => {
+    console.log(`\n TOTAL POTENTIAL INVESTEMENT IN BTC: ${totalPotentialInvestementInBtc} \n TOTAL POTENTIAL PROFIT IN BTC: ${totalPotentialProfitInBtc} BTC \n TOTAL POTENTIAL PROFIT WITH MAX BTC (${MAX_BTC_TO_BUY}): ${totalPotentialProfitInBtc_MAX_BTC_TO_BUY}`)
+}, 5000);
+
 function detectArbitrageOpportunity(coin, pairs) {
     let btcBid = pairs["BTC-"+coin].Buys[0];
     let btcAsk = pairs["BTC-"+coin].Sells[0];
@@ -204,7 +222,7 @@ function detectArbitrageOpportunity(coin, pairs) {
         totalPotentialProfitInBtc = totalPotentialProfitInBtc + maxPotentialWinInBtc;
         totalPotentialInvestementInBtc = totalPotentialInvestementInBtc + maxQuantityToArbitrageInBtc;
         totalPotentialProfitInBtc_MAX_BTC_TO_BUY = totalPotentialProfitInBtc_MAX_BTC_TO_BUY + maxPotentialWinWithMAX_BTC_TO_BUY;
-        console.log(`\n TOTAL POTENTIAL INVESTEMENT IN BTC: ${totalPotentialInvestementInBtc} \n TOTAL POTENTIAL PROFIT IN BTC: ${totalPotentialProfitInBtc} BTC \n TOTAL POTENTIAL PROFIT WITH MAX BTC (${MAX_BTC_TO_BUY}): ${totalPotentialProfitInBtc_MAX_BTC_TO_BUY}`)
+        //console.log(`\n TOTAL POTENTIAL INVESTEMENT IN BTC: ${totalPotentialInvestementInBtc} \n TOTAL POTENTIAL PROFIT IN BTC: ${totalPotentialProfitInBtc} BTC \n TOTAL POTENTIAL PROFIT WITH MAX BTC (${MAX_BTC_TO_BUY}): ${totalPotentialProfitInBtc_MAX_BTC_TO_BUY}`)
         // if (IS_LOG_ACTIVE) console.log(`BUY ${coin} IN BTC SELL IN ETH WITH A POTENTIAL OF:    +${potentialPercentageWin.toFixed(4)} %`)
         // if (IS_LOG_ACTIVE) console.log(`BTC-${coin}  ASK: ${btcAsk.Quantity} ${coin} @ ${btcAsk.Rate.toFixed(8)} BTC/${coin}   (Max Qty: ${maxQuantityToBuyInBtc.toFixed(5)} BTC) (Type: ${btcAsk.Type})`);
         // if (IS_LOG_ACTIVE) console.log(`ETH-${coin}  BID: ${ethBid.Quantity} ${coin} @ ${ethBid.Rate.toFixed(8)} ETH/${coin}   (Max Qty: ${maxQuantityToSellInEth.toFixed(5)} ETH) (Type: ${ethBid.Type})`);
