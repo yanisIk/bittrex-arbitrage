@@ -4,6 +4,11 @@
 //Calculate
 //Execute
 
+//IDEA 2 
+/**
+ * Monitor spread (bid -- ask), if order comes in as (bid > order < ask), buy it and ressel it
+ */
+
 const _ = require('lodash');
 const cluster = require('cluster');
 const numWorkers = require('os').cpus().length;
