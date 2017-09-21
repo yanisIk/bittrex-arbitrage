@@ -4,7 +4,7 @@
 
 //UTIL: process.stdout.write("Downloading " + data.length + " bytes\r"); TO OVERWRITE ON SAME LINE
 
-
+const SETTINGS = require("./dropCatcherSettings.json")
 
 const _ = require('lodash');
 const cluster = require('cluster');
@@ -13,36 +13,22 @@ const numWorkers = require('os').cpus().length;
 const async = require("async");
 const bittrex = require('node-bittrex-api');
 bittrex.options({
-  'apikey' : process.env.API_KEY || "f3d8e9751b9f44f68110efb56cb224e5",
-  'apisecret' : process.env.API_SECRET || "3bac270937014734bc2ba78442a01c5e",
+  'apikey' : SETTINGS.API_KEY,
+  'apisecret' : SETTINGS.API_SECRET,
+  'verbose' : false,
+  'inverse_callback_arguments' : true
 });
 const EventEmitter = require('events');
 
-const ALL_BITTREX_PAIRS = ["BTC-LTC","BTC-DOGE","BTC-VTC","BTC-PPC","BTC-FTC","BTC-RDD","BTC-NXT","BTC-DASH","BTC-POT","BTC-BLK","BTC-EMC2","BTC-XMY","BTC-AUR","BTC-EFL","BTC-GLD","BTC-SLR","BTC-PTC","BTC-GRS","BTC-NLG","BTC-RBY","BTC-XWC","BTC-MONA","BTC-THC","BTC-ENRG","BTC-ERC","BTC-VRC","BTC-CURE","BTC-XMR","BTC-CLOAK","BTC-START","BTC-KORE","BTC-XDN","BTC-TRUST","BTC-NAV","BTC-XST","BTC-BTCD","BTC-VIA","BTC-UNO","BTC-PINK","BTC-IOC","BTC-CANN","BTC-SYS","BTC-NEOS","BTC-DGB","BTC-BURST","BTC-EXCL","BTC-SWIFT","BTC-DOPE","BTC-BLOCK","BTC-ABY","BTC-BYC","BTC-XMG","BTC-BLITZ","BTC-BAY","BTC-BTS","BTC-FAIR","BTC-SPR","BTC-VTR","BTC-XRP","BTC-GAME","BTC-COVAL","BTC-NXS","BTC-XCP","BTC-BITB","BTC-GEO","BTC-FLDC","BTC-GRC","BTC-FLO","BTC-NBT","BTC-MUE","BTC-XEM","BTC-CLAM","BTC-DMD","BTC-GAM","BTC-SPHR","BTC-OK","BTC-SNRG","BTC-PKB","BTC-CPC","BTC-AEON","BTC-ETH","BTC-GCR","BTC-TX","BTC-BCY","BTC-EXP","BTC-INFX","BTC-OMNI","BTC-AMP","BTC-AGRS","BTC-XLM","BTC-BTA","USDT-BTC","BTC-CLUB","BTC-VOX","BTC-EMC","BTC-FCT","BTC-MAID","BTC-EGC","BTC-SLS","BTC-RADS","BTC-DCR","BTC-SAFEX","BTC-BSD","BTC-XVG","BTC-PIVX","BTC-XVC","BTC-MEME","BTC-STEEM","BTC-2GIVE","BTC-LSK","BTC-PDC","BTC-BRK","BTC-DGD","ETH-DGD","BTC-WAVES","BTC-RISE","BTC-LBC","BTC-SBD","BTC-BRX","BTC-DRACO","BTC-ETC","ETH-ETC","BTC-STRAT","BTC-UNB","BTC-SYNX","BTC-TRIG","BTC-EBST","BTC-VRM","BTC-SEQ","BTC-XAUR","BTC-SNGLS","BTC-REP","BTC-SHIFT","BTC-ARDR","BTC-XZC","BTC-NEO","BTC-ZEC","BTC-ZCL","BTC-IOP","BTC-DAR","BTC-GOLOS","BTC-UBQ","BTC-KMD","BTC-GBG","BTC-SIB","BTC-ION","BTC-LMC","BTC-QWARK","BTC-CRW","BTC-SWT","BTC-TIME","BTC-MLN","BTC-ARK","BTC-DYN","BTC-TKS","BTC-MUSIC","BTC-DTB","BTC-INCNT","BTC-GBYTE","BTC-GNT","BTC-NXC","BTC-EDG","BTC-LGD","BTC-TRST","ETH-GNT","ETH-REP","USDT-ETH","ETH-WINGS","BTC-WINGS","BTC-RLC","BTC-GNO","BTC-GUP","BTC-LUN","ETH-GUP","ETH-RLC","ETH-LUN","ETH-SNGLS","ETH-GNO","BTC-APX","BTC-TKN","ETH-TKN","BTC-HMQ","ETH-HMQ","BTC-ANT","ETH-TRST","ETH-ANT","BTC-SC","ETH-BAT","BTC-BAT","BTC-ZEN","BTC-1ST","BTC-QRL","ETH-1ST","ETH-QRL","BTC-CRB","ETH-CRB","ETH-LGD","BTC-PTOY","ETH-PTOY","BTC-MYST","ETH-MYST","BTC-CFI","ETH-CFI","BTC-BNT","ETH-BNT","BTC-NMR","ETH-NMR","ETH-TIME","ETH-LTC","ETH-XRP","BTC-SNT","ETH-SNT","BTC-DCT","BTC-XEL","BTC-MCO","ETH-MCO","BTC-ADT","ETH-ADT","BTC-FUN","ETH-FUN","BTC-PAY","ETH-PAY","BTC-MTL","ETH-MTL","BTC-STORJ","ETH-STORJ","BTC-ADX","ETH-ADX","ETH-DASH","ETH-SC","ETH-ZEC","USDT-ZEC","USDT-LTC","USDT-ETC","USDT-XRP","BTC-OMG","ETH-OMG","BTC-CVC","ETH-CVC","BTC-PART","BTC-QTUM","ETH-QTUM","ETH-XMR","ETH-XEM","ETH-XLM","ETH-NEO","USDT-XMR","USDT-DASH","ETH-BCC","USDT-BCC","BTC-BCC","USDT-NEO","ETH-WAVES","ETH-STRAT","ETH-DGB","ETH-FCT","ETH-BTS","USDT-OMG"];
-const ALL_BITTREX_PAIRS_CHUNKS = _.chunk(ALL_BITTREX_PAIRS, ALL_BITTREX_PAIRS.length / numWorkers)
 
-const IS_LOG_ACTIVE = true;
-const EVENTS = {MARKET_UPDATE: "MARKET_UPDATE"}
-const ORDER_EXECUTION_CODES = {
-    BUY_CANCELED: "BUY CANCELED",
-    BUY_PARTIAL: "BUY PARTIAL",
-    BUY_FULL: "BUY FULL",
-    SELL_CANCELED: "SELL CANCELED",
-    SELL_PARTIAL: "SELL PARTIAL",
-    SELL_FULL: "SELL FULL",
-}
+const ALL_BITTREX_PAIRS_CHUNKS = _.chunk(SETTINGS.ALL_BITTREX_PAIRS, SETTINGS.ALL_BITTREX_PAIRS.length / numWorkers)
 
-const MIN_PROFIT_PERCENTAGE = 10;
-const MIN_PROFIT_BTC = 0;
-const MAX_BTC_TO_BUY = 0.0001;
 
-const BUY_CONCURENCY = 100;
-const SELL_CONCURENCY = 100;
-const LOG_CONCURENCY = 20;
 
 var marketEventEmitter;
 var ticksByPair = {};
-var i = 0;
+//generate unique id of each received pair data with: MarketName+Nounce+(Sells[0].Rate)+(Sells[0].Quantity)
+var alreadySentMarketData = {};
 function subscribeToPairs(pairs) {
     if (marketEventEmitter) return marketEventEmitter;
 
@@ -59,7 +45,7 @@ function subscribeToPairs(pairs) {
                         Last: tick.Last,
                         TimeStamp: tick.TimeStamp,
                     }
-                })
+                });
             });    
             return;
         }
@@ -74,7 +60,12 @@ function subscribeToPairs(pairs) {
 
                 if (!data_for.Sells.length) return;
                 
-                marketEventEmitter.emit(EVENTS.MARKET_UPDATE, data_for.MarketName, data_for.Sells)
+                //prevent duplicates
+                let eventId = `${data_for.MarketName}${data_for.Nounce}${data_for.Sells[0].Rate}${data_for.Sells[0].Quantity}`;
+                if (alreadySentMarketData[eventId]) return;
+                alreadySentMarketData[eventId] = true;
+                
+                marketEventEmitter.emit(SETTINGS.EVENTS.MARKET_UPDATE, data_for.MarketName, data_for.Sells, eventId)
             });
         }
     });
@@ -82,14 +73,24 @@ function subscribeToPairs(pairs) {
 }
 
 /**
- * Buy Immediate Or Cancel
+ * Buy Immediate Or Cancel (returns partial and auto cancel)
  * @param {*} opportunity 
  */
-function executeBuyOrder(opportunity) {
+function executeBuyOrder(pair, quantity, rate) {
     return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            resolve(1);
-        }, 1000);
+        bittrex.tradebuy({
+            MarketName: pair,
+            OrderType: 'LIMIT',
+            Quantity: opportunity.coinQuantity,
+            Rate: opportunity.sellPrice,
+            TimeInEffect: 'IMMEDIATE_OR_CANCEL', // supported options are 'IMMEDIATE_OR_CANCEL', 'GOOD_TIL_CANCELLED', 'FILL_OR_KILL'
+            ConditionType: 'NONE', // supported options are 'NONE', 'GREATER_THAN', 'LESS_THAN'
+            Target: 0, // used in conjunction with ConditionType
+        }, function( err, data ) {
+            if (err) return reject(err);
+            resolve(data);
+            if (SETTINGS.IS_LOG_ACTIVE) console.log("BUY ORDER RESPONSE:", data);
+        });
     });
 }
 
@@ -99,30 +100,50 @@ function executeBuyOrder(opportunity) {
  */
 function executeSellOrder(opportunity) {
     return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            resolve(1);
-        }, 1000);
+        bittrex.tradesell({
+            MarketName: opportunity.pair,
+            OrderType: 'CONDITIONAL',
+            Quantity: opportunity.amountBoughtInCoin,
+            Rate: opportunity.bid, //this is the ask when profit calculation was made
+            TimeInEffect: 'IMMEDIATE_OR_CANCEL', // supported options are 'IMMEDIATE_OR_CANCEL', 'GOOD_TIL_CANCELLED', 'FILL_OR_KILL'
+            ConditionType: 'GREATER_THAN', // supported options are 'NONE', 'GREATER_THAN', 'LESS_THAN'
+            Target: opportunity.stopLoss, // used in conjunction with ConditionType
+        }, function( data, err ) {
+            if (err) return reject(err);
+            resolve(data);
+            if (SETTINGS.IS_LOG_ACTIVE) console.log("SELL ORDER RESPONSE:", data);
+        });
     });
 }
 
 
-function checkOrder(orderId, ORDER_TIMEOUT) {
+function checkOrder(orderId, WAIT_TIME) {
     return new Promise((resolve, reject) => {
         setTimeout(() => {
-            const possibleResponses = [{isFulfilled: false, isPartiallyFulfilled: false, amountFulfilled: 0, rate: 0.002},
-                                       {isFulfilled: false, isPartiallyFulfilled: true, amountFulfilled: 1, rate: 0.0015},
-                                       {isFulfilled: true, isPartiallyFulfilled: false, amountFulfilled: 2, rate: 0.001}]
+            // const possibleResponses = [{isFulfilled: false, isPartiallyFulfilled: false, amountFulfilled: 0, rate: 0.002},
+            //                            {isFulfilled: false, isPartiallyFulfilled: true, amountFulfilled: 1, rate: 0.0015},
+            //                            {isFulfilled: true, isPartiallyFulfilled: false, amountFulfilled: 2, rate: 0.001}]
 
-            resolve(possibleResponses[2]);
-        }, ORDER_TIMEOUT);
+            // resolve(possibleResponses[2]);
+            bittrex.getorder({uuid: orderId}, (err, order) => {
+                if (err) return reject(err);
+                resolve(order);
+                if (SETTINGS.SETTINGS.IS_LOG_ACTIVE) console.log("GET ORDER RESPONSE:", order);
+            });
+        }, WAIT_TIME);
     });
 }
 
 function cancelOrder(orderId) {
     return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            resolve(1);
-        }, 1000);
+        bittrex.cancel({uuid: orderId}, (err, data) => {
+            if (err) return reject(err);
+            resolve(data);
+            if (SETTINGS.IS_LOG_ACTIVE) console.log("CANCEL ORDER RESPONSE:", data);
+        });
+        // setTimeout(() => {
+        //     resolve(1);
+        // }, 1000);
     });
 }
 
@@ -131,15 +152,14 @@ function cancelOrder(orderId) {
 /*  
     // bid > sell by x% ? buy then sell at ASK + y%
 */
-const MIN_DROP_PERCENTAGE  = 1 ;
-function detectPriceDrop(pair, sellOrders) {
+function detectPriceDrop(pair, sellOrders, eventId) {
     
     const dropPercentage = ( (ticksByPair[pair].Bid - sellOrders[0].Rate) / ticksByPair[pair].Bid) * 100;
 
     if (sellOrders[0].Rate < ticksByPair[pair].Bid)
-        console.log(`${pair} Sell Rate: ${sellOrders[0].Rate} - Bid: ${ticksByPair[pair].Bid} - Drop of ${dropPercentage.toFixed(4)}%`)
+        console.log(`${pair} Sell Rate: ${sellOrders[0].Rate} - Bid: ${ticksByPair[pair].Bid} - Drop of ${dropPercentage.toFixed(4)}% (${eventId})`)
     
-    if (dropPercentage < MIN_DROP_PERCENTAGE ) return null;
+    if (dropPercentage < SETTINGS.MIN_PROFIT_PERCENTAGE ) return null;
 
     return {pair: pair, 
             bid: ticksByPair[pair].Bid,
@@ -147,9 +167,10 @@ function detectPriceDrop(pair, sellOrders) {
             last: ticksByPair[pair].Last,
             sellPrice: sellOrders[0].Rate,
             dropPercentage: dropPercentage, 
-            coinQuantity: sellOrders[0].Quantity, 
+            coinQuantity: sellOrders[0].Quantity,
             baseCoinQuantity: sellOrders[0].Quantity * sellOrders[0].Rate,
-            potentialProfit: (sellOrders[0].Quantity * ticksByPair[pair].Bid) - (sellOrders[0].Quantity * sellOrders[0].Rate)
+            potentialProfit: (sellOrders[0].Quantity * ticksByPair[pair].Bid) - (sellOrders[0].Quantity * sellOrders[0].Rate),
+            steps: {BUY: {}, SELL: {}}
     };
     
 }
@@ -159,30 +180,49 @@ function detectPriceDrop(pair, sellOrders) {
  *    returns updated opportunity
  */
 async function buyAndCheck(opportunity) {
-    //Execute order
-    const buyOrderId = await executeBuyOrder(opportunity);
-    //Wait and get order status
-    const buyOrderStatus = await checkOrder(buyOrderId, BUY_ORDER_TIMEOUT);
-    //if order is not fulfilled and not partially fulfilled, cancel it
-    if ( (!buyOrderStatus.isFulfilled) && (!buyOrderStatus.isPartiallyFulfilled) ) {
-        await cancelOrder(buyOrderId);
+    try {
+        //Set amount to buy (TODO: optimize based on the profit percentage)
+        let basecoin = opportunity.pair.split('-')[0];
+        opportunity.steps.BUY.amountToBuy = opportunity.coinQuantity;
+        if (opportunity.baseCoinQuantity > SETTINGS.MAX_BASECOIN_TO_BUY[basecoin]) opportunity.steps.BUY.amountToBuy = SETTINGS.MAX_BASECOIN_TO_BUY[basecoin] * opportunity.sellPrice;
+
+        //Execute buy order
+        const buyOrderId = await executeBuyOrder(opportunity.pair, opportunity.steps.BUY.amountToBuy, opportunity.sellPrice);
+        
+        //TODO: HANDLE ERRORS HERE (when buy or sell or check throws exception)
+        if (!buyOrderId) return;
+        
+        //Wait and get order status
+        const buyOrderStatus = await checkOrder(buyOrderId, SETTINGS.BUY_ORDER_WAIT_TIME);
+
+        //TODO: HANDLE ERRORS HERE (when buy or sell or check throws exception)
+        if (!buyOrderStatus) return;
+
+        //if order is not fulfilled and not partially fulfilled, cancel it
+        if ( (!buyOrderStatus.isFulfilled) && (!buyOrderStatus.isPartiallyFulfilled) ) {
+            //order is auto canceled
+            return {
+                order: buyOrderStatus,
+                executionStatus: SETTINGS.ORDER_EXECUTION_CODES.BUY_CANCELED
+            }
+        }
+
+        if (buyOrderStatus.isPartiallyFulfilled) {
+            return {
+                order: buyOrderStatus,
+                executionStatus: SETTINGS.ORDER_EXECUTION_CODES.BUY_PARTIAL
+            }
+        }
+
         return {
             order: buyOrderStatus,
-            executionStatus: ORDER_EXECUTION_CODES.BUY_CANCELED
+            executionStatus: SETTINGS.ORDER_EXECUTION_CODES.BUY_FULL
         }
     }
-
-    if (buyOrderStatus.isPartiallyFulfilled) {
-         return {
-            order: buyOrderStatus,
-            executionStatus: ORDER_EXECUTION_CODES.BUY_PARTIAL
-        }
+    catch (e) {
+        console.error(e);
     }
 
-    return {
-        order: buyOrderStatus,
-        executionStatus: ORDER_EXECUTION_CODES.BUY_FULL
-    }
 }
 
 /**
@@ -190,72 +230,57 @@ async function buyAndCheck(opportunity) {
  * @param {*} opportunity 
  */
 async function sellAndCheck(opportunity) {
-    //Execute order
-    const sellOrderId = await executeSellOrder(opportunity);
+    try {
+        //Set amount to sell and stop loss
+        opportunity.steps.SELL.quantityToSell = opportunity.steps.BUY.quantityBought;
+        opportunity.steps.SELL.stopLossRate = opportunity.sellPrice;
 
-    //Wait and get order status
-    const sellOrderStatus = await checkOrder(sellOrderId, SELL_ORDER_TIMEOUT);
+        //Execute order
+        const sellOrderId = await executeSellOrder(opportunity.pair, opportunity.steps.SELL.quantityToSell, opportunity.bid, opportunity.steps.SELL.stopLossRate);
 
-    //if order is not fulfilled and not partially fulfilled, cancel it
-    if ( (!sellOrderStatus.isFulfilled) && (!sellOrderStatus.isPartiallyFulfilled) ) {
-        await cancelOrder(sellOrderId);
-         return {
-            order: sellOrderStatus,
-            executionStatus: ORDER_EXECUTION_CODES.SELL_CANCELED
+        //TODO: HANDLE ERRORS HERE (when buy or sell or check throws exception)
+        if (!sellOrderId) return;
+
+        //Wait and get order status
+        const sellOrderStatus = await checkOrder(sellOrderId, SELL_ORDER_WAIT_TIME);
+
+        //TODO: HANDLE ERRORS HERE (when buy or sell or check throws exception)
+        if (!sellOrderStatus) return;
+
+        //if order is not fulfilled and not partially fulfilled, cancel it
+        if ( (!sellOrderStatus.isFulfilled) && (!sellOrderStatus.isPartiallyFulfilled) ) {
+            await cancelOrder(sellOrderId);
+            return {
+                order: sellOrderStatus,
+                executionStatus: SETTINGS.ORDER_EXECUTION_CODES.SELL_CANCELED
+            }
         }
-    }
 
-    if (sellOrderStatus.isPartiallyFulfilled) {
-         return {
-            order: sellOrderStatus,
-            executionStatus: ORDER_EXECUTION_CODES.SELL_PARTIAL
+        if (sellOrderStatus.isPartiallyFulfilled) {
+            return {
+                order: sellOrderStatus,
+                executionStatus: SETTINGS.ORDER_EXECUTION_CODES.SELL_PARTIAL
+            }
         }
-    }
 
-    return {
-        order: sellOrderStatus,
-        executionStatus: ORDER_EXECUTION_CODES.SELL_FULL
+        return {
+            order: sellOrderStatus,
+            executionStatus: SETTINGS.ORDER_EXECUTION_CODES.SELL_FULL
+        }
+    } catch (e) {
+        console.error(e);
     }
 }
 
-/**
- * 4)
- * @param {*} opportunity 
- */
-async function convertAndCheck(opportunity) {
-    //Execute order
-    const convertOrderId = await executeSellOrder(opportunity);
-
-    //Wait and get order status
-    const convertOrderStatus = await checkOrder(convertOrderId, CONVERT_ORDER_TIMEOUT);
-
-    //if order is not fulfilled and not partially fulfilled, cancel it
-    if ( (!convertOrderStatus.isFulfilled) && (!convertOrderStatus.isPartiallyFulfilled) ) {
-        await cancelOrder(convertOrderId);
-         return {
-            order: convertOrderStatus,
-            executionStatus: ORDER_EXECUTION_CODES.CONVERT_CANCELED
-        }
-    }
-
-    if (convertOrderStatus.isPartiallyFulfilled) {
-         return {
-            order: convertOrderStatus,
-            executionStatus: ORDER_EXECUTION_CODES.CONVERT_PARTIAL
-        }
-    }
-
-    return {
-        order: convertOrderStatus,
-        executionStatus: ORDER_EXECUTION_CODES.CONVERT_FULL
-    }
-}
 
 
 const logQueue = async.queue(async (opportunity, cb) => {
-    if (IS_LOG_ACTIVE) console.log(` ----------- ARBITRAGE OPPORTUNITY EXECUTED ${opportunity.id} ------------- \n`, opportunity);
+    if (SETTINGS.IS_LOG_ACTIVE) console.log(` ----------- ARBITRAGE OPPORTUNITY EXECUTED ${opportunity.id} ------------- \n`, opportunity);
     cb();
-}, LOG_CONCURENCY)
+}, SETTINGS.LOG_CONCURENCY);
+
+
+
 const sellAndCheckQueue = async.queue(async (opportunity, cb) => {
         try {
             sellOrderStatus = await sellAndCheck(opportunity);
@@ -275,19 +300,19 @@ const sellAndCheckQueue = async.queue(async (opportunity, cb) => {
             opportunity.steps.SELL.amountInBaseCoinLeftToSell = opportunity.steps.SELL.totalBaseCoinToSell - opportunity.steps.SELL.totalBaseCoinSold;
 
             switch(sellOrderStatus.executionStatus) {
-                case ORDER_EXECUTION_CODES.SELL_FULL:
-                    if (IS_LOG_ACTIVE) console.log("\n !!!! FULFILLED SELL order !!!! \n", sellOrderStatus);
+                case SETTINGS.ORDER_EXECUTION_CODES.SELL_FULL:
+                    if (SETTINGS.IS_LOG_ACTIVE) console.log("\n !!!! FULFILLED SELL order !!!! \n", sellOrderStatus);
                     convertAndCheckQueue.push(opportunity);
                     break;
-                case ORDER_EXECUTION_CODES.SELL_PARTIAL:
-                    if (IS_LOG_ACTIVE) console.log("\n !!!! PARTIALLY FULFILED SELL Order  !!!! \n", opportunity);
+                case SETTINGS.ORDER_EXECUTION_CODES.SELL_PARTIAL:
+                    if (SETTINGS.IS_LOG_ACTIVE) console.log("\n !!!! PARTIALLY FULFILED SELL Order  !!!! \n", opportunity);
                     //Convert the amount sold
                     convertAndCheckQueue.push(opportunity);
                     //Retry to sell the remaining coins (put it first in the queue)
                     sellAndCheckQueue.unshift(opportunity);
                     break;
-                case ORDER_EXECUTION_CODES.SELL_CANCELED:
-                    if (IS_LOG_ACTIVE) console.log("\n !!!! CANCELED SELL order !!!! \n", sellOrderStatus);
+                case SETTINGS.ORDER_EXECUTION_CODES.SELL_CANCELED:
+                    if (SETTINGS.IS_LOG_ACTIVE) console.log("\n !!!! CANCELED SELL order !!!! \n", sellOrderStatus);
                     //Retry with the remaining AMOUNT with different parameters
                     sellAndCheckQueue.unshift(opportunity);
                     break;
@@ -297,13 +322,12 @@ const sellAndCheckQueue = async.queue(async (opportunity, cb) => {
             console.error(e)
             cb(e)
         }
-    }, SELL_CONCURENCY);
-
+    }, SETTINGS.SELL_CONCURENCY);
 
 
 const buyAndCheckQueue = async.queue(async (opportunity, cb) => {
         try {
-            buyOrderStatus = await buyAndCheck(opportunity);
+            buyOrderStatusPromise = await buyAndCheck(opportunity);
 
             //Update opportunity
             opportunity.steps.BUY.trials.push({
@@ -317,17 +341,17 @@ const buyAndCheckQueue = async.queue(async (opportunity, cb) => {
             opportunity.steps.BUY.amountBoughtInBaseCoin = buyOrderStatus.order.amountFulfilledInBaseCoin;
             
             switch(buyOrderStatus.executionStatus) {
-                case ORDER_EXECUTION_CODES.BUY_FULL:
-                    if (IS_LOG_ACTIVE) console.log("\n !!!! FULFILLED BUY order !!!! \n", buyOrderStatus);
+                case SETTINGS.ORDER_EXECUTION_CODES.BUY_FULL:
+                    if (SETTINGS.IS_LOG_ACTIVE) console.log("\n !!!! FULFILLED BUY order !!!! \n", buyOrderStatus);
                     sellAndCheckQueue.push(opportunity);
                     break;
-                case ORDER_EXECUTION_CODES.BUY_PARTIAL:
-                    if (IS_LOG_ACTIVE) console.log("\n !!!! PARTIALLY FULFILLED BUY order !!!! \n", buyOrderStatus);
+                case SETTINGS.ORDER_EXECUTION_CODES.BUY_PARTIAL:
+                    if (SETTINGS.IS_LOG_ACTIVE) console.log("\n !!!! PARTIALLY FULFILLED BUY order !!!! \n", buyOrderStatus);
                     sellAndCheckQueue.push(opportunity);
                     //Keep the remaining base coins to use them for another opportunity...
                     break;
-                case ORDER_EXECUTION_CODES.BUY_CANCEL:
-                    if (IS_LOG_ACTIVE) console.log("\n !!!! CANCELED BUY order !!!! \n", buyOrderStatus);
+                case SETTINGS.ORDER_EXECUTION_CODES.BUY_CANCEL:
+                    if (SETTINGS.IS_LOG_ACTIVE) console.log("\n !!!! CANCELED BUY order !!!! \n", buyOrderStatus);
                     //too bad, do nothing and wait for the next
                     break;
                 default: cb(null, opportunity)
@@ -336,7 +360,7 @@ const buyAndCheckQueue = async.queue(async (opportunity, cb) => {
             console.error(e);
             cb(e);
         }
-    }, BUY_CONCURENCY);
+    }, SETTINGS.BUY_CONCURENCY);
 
 
 var totalPotentialInvestementInBtc = 0
@@ -347,15 +371,15 @@ var totalPotentialProfitInBtc_MAX_BTC_TO_BUY = 0;
 // }, 20000);
 async function startMonitoring(pairs, workerId) {
     
-    subscribeToPairs(pairs).on(EVENTS.MARKET_UPDATE, async (pair, sellOrders) => {
+    subscribeToPairs(pairs).on(SETTINGS.EVENTS.MARKET_UPDATE, async (pair, sellOrders, eventId) => {
         //TODO fix duplicates (same opportunity)
-        let opportunity = detectPriceDrop(pair, sellOrders);
+        let opportunity = detectPriceDrop(pair, sellOrders, eventId);
         if (!opportunity) return;
 
         totalPotentialInvestementInBtc = totalPotentialInvestementInBtc + opportunity.baseCoinQuantity;
         totalPotentialProfitInBtc = totalPotentialProfitInBtc + opportunity.potentialProfit;
         
-        if (IS_LOG_ACTIVE) {
+        if (SETTINGS.IS_LOG_ACTIVE) {
             console.log(`\n ----- PRICE DROP ${pair} (workerId ${workerId})----- \n`);
             console.log(opportunity)
             console.log(`\n TOTAL POTENTIAL INVESTEMENT: ${totalPotentialInvestementInBtc} BTC \n TOTAL POTENTIAL PROFIT: ${totalPotentialProfitInBtc} BTC \n (workerId ${workerId}) \n`)
