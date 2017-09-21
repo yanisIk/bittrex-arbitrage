@@ -327,6 +327,10 @@ const sellAndCheckQueue = async.queue(async (opportunity, cb) => {
 
 const buyAndCheckQueue = async.queue(async (opportunity, cb) => {
         try {
+
+            //double check if bid didnt drop compared to when detected 
+            if (ticksByPair[opportunity.pair].Bid < opportunity.bid) return cb();
+
             buyOrderStatusPromise = await buyAndCheck(opportunity);
 
             //Update opportunity
