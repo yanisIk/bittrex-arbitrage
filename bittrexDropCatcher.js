@@ -31,7 +31,6 @@ var ticksByPair = {};
 var alreadySentMarketData = {};
 function subscribeToPairs(pairs) {
     if (marketEventEmitter) return marketEventEmitter;
-
     marketEventEmitter = new EventEmitter();
     bittrex.websockets.subscribe(pairs, function(data, client) {    
         

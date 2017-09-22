@@ -1,0 +1,28 @@
+-An uptrend is classified as a series of higher highs and higher lows, while a downtrend consists of lower lows and lower highs.
+
+    -Define trend length with how much subsequent higher highs and lows are detected in a fraction of time or number of ticks.
+
+    -How to detect end of trend: detect opposite trend ?
+
+    -volume changes can be a precursor to price changes. If volume is decreasing in an uptrend, it could signal that the uptrend is coming to a close and a reversal may be likely.
+
+
+- HFT: “penny jump”: On uptrend,  Always have the highest bid by 1 satoshi to fill the first asks and resell after how much time ?
+ If they are bidding for a stock, they know that if they get ahead of you by 1 cent, they can get their fills and try to sell on the ask. 
+ If all goes well, they make the spread, if it doesn’t and the stock looks to drop, they dump their shares (that they just bought by penny jumping) into your orders (the one they penny jumped).
+http://www.beathft.com/?p=88
+
+
+HYPOTHESIS: detect if price is rising by checking in realtime if (Bid > Last) more than X times && than X amount ?
+
+Read more: Technical Analysis: The Use Of Trend http://www.investopedia.com/university/technical/techanalysis3.asp#ixzz4tNuSGqhV
+
+
+!!! DETECT HIGH AND LOW WITH REALTIME ORDER DATA IN ADVANCE OF EXCHANGE HIGH LOW TICK ?
+
+
+
+BOOKS: 
+
+-
+https://books.google.ca/books?id=8QpIsVUMhmEC&pg=PT2&lpg=PT2&dq=hft+techniques&source=bl&ots=HYeCyEc9SE&sig=s-Uj_y7XzBjV8vRweVhXk9RmFwQ&hl=en&sa=X&ved=0ahUKEwi3yKyHlLjWAhXo4IMKHeokB4sQ6AEIkAEwEw#v=onepage&q=hft%20techniques&f=false
