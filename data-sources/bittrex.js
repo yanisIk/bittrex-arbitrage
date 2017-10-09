@@ -1,24 +1,18 @@
-const CONFIG = require("./../configs/BITTREX_ARBITRAGE.json");
-
 const bittrex = require('node-bittrex-api');
 bittrex.options({
-  'apikey' : CONFIG.API_KEY,
-  'apisecret' : CONFIG.API_SECRET,
+  'apikey' : SETTINGS.API_KEY,
+  'apisecret' : SETTINGS.API_SECRET,
   'verbose' : false,
   'inverse_callback_arguments' : true
 });
 const EventEmitter = require('events');
 
-module.export = class BittrexExchangeService {
+export default class BittrexDataSource {
 
     constructor() {
         this.sellOrdersEmitter;
         this.buyOrdersEmitter;
         this.ticksEmitter;
-    }
-
-    subscribeToStatWindow() {
-        
     }
 
     subscribeToOrders(pairs) {
@@ -46,7 +40,7 @@ module.export = class BittrexExchangeService {
         return {sellOrdersEmitter: this.sellOrdersEmitter, buyOrdersEmitter: this.buyOrdersEmitter};
     }
 
-    subscribeToTicks() {
+    subscribeToTicks(pairs) {
         if (this.ticksEmitter) return ticksEmitter;
         this.ticksEmitter = new EventEmitter();
         
@@ -56,7 +50,7 @@ module.export = class BittrexExchangeService {
                     //setImmediate to run before all other callbacks in the program
                     //and have always up to date data
                     setImmediate(() => ticks.Deltas.forEach((tick) => {
-                        ticksEmitter.emit('TICK', tick.MarketName, tick);
+                        ticksEmitter.emit(tick.MarketName, tick);
                     }));
                 });    
             }
@@ -64,35 +58,5 @@ module.export = class BittrexExchangeService {
 
         return this.ticksEmitter;
     }
-
-    buyLimitUntilCanceled(rate, qty) {
-        
-    }
-
-    buyLimitImmediateOrCancel() {
-
-    }
-
-    buyMarket() {
-
-    }
-
-    sellLimitUntilCanceled(rate, qty) {
-        
-    }
-
-    sellLimitImmediateOrCancel() {
-
-    }
-
-    sellMarket() {
-
-    }
-
-
-
-
-
-
 
 }

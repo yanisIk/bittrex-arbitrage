@@ -1,8 +1,7 @@
-const CONFIG = require("./configs/BITTREX_DROP_CATCHER.json");
 const BittrexExchangeService = require("./BittrexExchangeService");
 const bittrexExchangeService = new BittrexExchangeService(); 
 
-export default class BittrexAccountManager {
+module.export = class BittrexAccountManager {
     
     constructor() {
         this.lastBalances = {};
@@ -84,5 +83,7 @@ export default class BittrexAccountManager {
         this.balances[coin] -= quantity;
     }
 
-    async saveState
+    async saveState() {
+
+    }
 }

@@ -1,0 +1,38 @@
+Monitor in very small windows the following indicators:
+
+- TICKS:
+    - MEAN BID
+    - MEAN ASK
+    - MEAN SPREAD
+    - MAX BID
+    - MAX ASK
+    - MAX SPREAD
+    - MIN BID
+    - MIN ASK
+    - MIN SPREAD
+    - STDEV BID
+    - STDEV ASK
+    - STDEV SPREAD
+    - VAR BID
+    - VAR ASK
+    - VAR SPREAD
+
+ORDERS:
+    - AVG BUY VOLUME
+    - AVG SELL VOLUME
+    - AVG ORDER QTY
+    - AVG TOTAL VOLUME = (AVG BUY VOL + AVG SELL VOL) / 2
+    - AVG VOLUME/ORDER = AVG TOTAL VOLUME / AVG ORDER QTY
+
+    - SUM BUY VOLUME
+    - SUM SELL VOLUME
+    - SUM ORDER QTY
+    
+    - MIN-MAX BUY VOLUME ORDER
+    - MIN-MAX SELL VOLUME ORDER
+
+    - MIN-MAX ORDER QTY
+    
+    - SUM BUY VOLUME
+    - SUM SELL VOLUME
+    - SUM ORDER QTY

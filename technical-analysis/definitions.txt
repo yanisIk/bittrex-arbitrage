@@ -26,3 +26,22 @@ BOOKS:
 
 -
 https://books.google.ca/books?id=8QpIsVUMhmEC&pg=PT2&lpg=PT2&dq=hft+techniques&source=bl&ots=HYeCyEc9SE&sig=s-Uj_y7XzBjV8vRweVhXk9RmFwQ&hl=en&sa=X&ved=0ahUKEwi3yKyHlLjWAhXo4IMKHeokB4sQ6AEIkAEwEw#v=onepage&q=hft%20techniques&f=false
+
+TECHNICS: 
+
+- MARKET MAKING: OUTBUY @ BID+x% & SELL @ ASK-x%
+
+a) EVERYTIME HIGHEST BID THAN OUR IS DETECTED :
+    - IF ACTUAL BID: CANCEL
+    - OUTBID @BID+x%
+    - CHECK BUY ORDER AFTER y milliseconds
+    - IF FULFILLED: ASK FOR ASK-x%
+        - CHECK SELL ORDER AFTER y milliseconds
+        - IF FULFILLED: 
+
+b) EVERYTIME LOWEST ASK THAN OUR IS DETECTED :
+    - IF ACTUAL ASK: CANCEL
+    - UNDERASK @ASK-x%
+
+c) BEFORE OUTBID, check OUR SPREAD (SHOULD BE SAME AS REAL SPREAD):
+    - IF 
