@@ -1,3 +1,17 @@
+/**
+ * Every 1mn:
+ *  if (bid > bidt1) {
+ *      
+ *  }
+ */
+
+
+
+
+
+
+
+
 //Catch sell price drops  and resell in same currency
 //Detect price drop by comparing BID with top of sell order book then sell at a little more than ASK
 // bid > sell by x% ? buy then sell at ASK + y%
