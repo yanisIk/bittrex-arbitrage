@@ -12,7 +12,7 @@ bittrex.options({
 
 const EventEmitter = require('events');
 
-module.export = class BittrexExchangeService {
+module.exports = class BittrexExchangeService {
 
     constructor() {
         this.sellOrdersEmitter;
@@ -30,11 +30,11 @@ module.export = class BittrexExchangeService {
         this.sellOrdersEmitter = new EventEmitter();
         this.buyOrdersEmitter = new EventEmitter();
         
-        bittrex.websockets.subscribe(pairs, function(data, client) {    
+        bittrex.websockets.subscribe(pairs, (data, client) => {    
             
             //Emit orders and updates order book
             if (data.M === 'updateExchangeState') {
-                data.A.forEach(function(pairOrders) {
+                data.A.forEach((pairOrders) => {
                     //setImmediate to run before all other callbacks in the program
                     //and have always up to date data
                     setImmediate(() => pairOrders.Sells.forEach(sellOrder => {
@@ -51,16 +51,16 @@ module.export = class BittrexExchangeService {
     }
 
     subscribeToTicks() {
-        if (this.ticksEmitter) return ticksEmitter;
+        if (this.ticksEmitter) return this.ticksEmitter;
         this.ticksEmitter = new EventEmitter();
         
-        bittrex.websockets.listen(function(data, client) {    
+        bittrex.websockets.listen((data, client) => {    
             if (data.M === 'updateSummaryState') {
                 data.A.forEach((ticks) => {
                     //setImmediate to run before all other callbacks in the program
                     //and have always up to date data
                     setImmediate(() => ticks.Deltas.forEach((tick) => {
-                        ticksEmitter.emit('TICK', tick);
+                        this.ticksEmitter.emit('TICK', tick);
                     }));
                 });    
             }
@@ -219,7 +219,14 @@ module.export = class BittrexExchangeService {
                 
     }
 
+    /**
+     * Get the order and doesn't return it until it's closed (recursive call)
+     * 5 trials
+     * @param {*} orderId 
+     * @param {*} trials 
+     */
     async getClosedOrder(orderId, trials = 0) {
+        
         const order = await this.getOrder(orderId);
         if (order.isOpen === false) return order; 
         const MAX_TRIALS = 5;

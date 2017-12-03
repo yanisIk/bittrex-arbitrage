@@ -1,7 +1,7 @@
 const BittrexExchangeService = require("./BittrexExchangeService");
 const bittrexExchangeService = new BittrexExchangeService(); 
 
-module.export = class BittrexAccountManager {
+module.exports = class BittrexAccountManager {
     
     constructor() {
         this.lastBalances = {};
