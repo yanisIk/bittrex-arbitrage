@@ -31,7 +31,7 @@ class BittrexArbitrage {
         // this.buyOrdersEventEmitter = this.bittrexExchangeService.getBuyOrdersEmitter();
         // this.sellOrdersEventEmitter = this.bittrexExchangeService.getSellOrdersEmitter();
 
-        this.arbitrageDetector = new BittrexArbitrageDetector(this.ticksEventEmitter);
+        this.arbitrageDetector = new BittrexArbitrageDetector();
 
         this.buyQueue = null;
         this.sellQueue = null;
@@ -58,7 +58,7 @@ class BittrexArbitrage {
                 this.sellQueue.push(opportunity);
                 cb();
             } catch (e) {
-                console.error(`!!! Error in BuyQueue !!! \n \n ${e}`);
+                console.error(`!!! Error in BuyQueue !!! \n \n ${JSON.stringify(e)}`);
                 cb(e);
             }
         }, CONFIG.BUY_CONCURENCY);
@@ -75,7 +75,7 @@ class BittrexArbitrage {
                 this.convertQueue.push(opportunity);
                 cb();
             } catch (e) {
-                console.error(`!!! Error in SellQueue !!! \n \n ${e}`);
+                console.error(`!!! Error in SellQueue !!! \n \n ${JSON.stringify(e)}`);
                 cb(e)
             }
         }, CONFIG.SELL_CONCURENCY);
@@ -92,7 +92,7 @@ class BittrexArbitrage {
                 this.logQueue.push(opportunity);
                 cb();
             } catch (e) {
-                console.error(`!!! Error in ConvertQueue !!! \n \n ${e}`);
+                console.error(`!!! Error in ConvertQueue !!! \n \n ${JSON.stringify(e)}`);
                 cb(e)
             }
         }, CONFIG.SELL_CONCURENCY);
@@ -106,7 +106,7 @@ class BittrexArbitrage {
         const monitor_BTC_ETH_Arbitrage = () => {
             async.eachLimit(this.BTC_ETH_COMMON_COINS, 2, async (coin, cb) => {
                 const opportunity = await this.arbitrageDetector.detect_BTC_ETH_Arbitrage(coin);
-                if (opportunity) this.buyQueue.push(opportunity);
+                //if (opportunity) this.buyQueue.push(opportunity);
                 //cb();
             }, (err) => {
                 if (!err) return monitor_BTC_ETH_Arbitrage(); //reloop
@@ -117,7 +117,7 @@ class BittrexArbitrage {
         const monitor_ETH_BTC_Arbitrage = () => {
             async.eachLimit(this.BTC_ETH_COMMON_COINS, 2, async (coin, cb) => {
                 const opportunity = await this.arbitrageDetector.detect_ETH_BTC_Arbitrage(coin);
-                if (opportunity) this.buyQueue.push(opportunity);
+                //if (opportunity) this.buyQueue.push(opportunity);
                 //cb();
             }, (err) => {
                 if (!err) return monitor_ETH_BTC_Arbitrage(); //reloop
@@ -128,10 +128,10 @@ class BittrexArbitrage {
         const monitor_USDT_BTC_Arbitrage = () => {
             async.eachLimit(this.BTC_USDT_COMMON_COINS, 1, async (coin, cb) => {
                 const opportunity = await this.arbitrageDetector.detect_USDT_BTC_Arbitrage(coin);
-                if (opportunity) this.buyQueue.push(opportunity);
+                //if (opportunity) this.buyQueue.push(opportunity);
                 //cb();
             }, (err) => {
-                if (!err) return monitor_USDT_BTC_Arbitrage(); //reloop
+                if (!err) return setTimeout(monitor_USDT_BTC_Arbitrage, 2000); //reloop
                 console.error(`ERROR IN monitor_USDT_BTC_Arbitrage`, err);
             });
         }
@@ -139,10 +139,10 @@ class BittrexArbitrage {
         const monitor_USDT_ETH_Arbitrage = () => {
             async.eachLimit(this.ETH_USDT_COMMON_COINS, 1, async (coin, cb) => {
                 const opportunity = await this.arbitrageDetector.detect_USDT_ETH_Arbitrage(coin);
-                if (opportunity) this.buyQueue.push(opportunity);
+                //if (opportunity) this.buyQueue.push(opportunity);
                 //cb();
             }, (err) => {
-                if (!err) return monitor_USDT_ETH_Arbitrage(); //reloop
+                if (!err) return setTimeout(monitor_USDT_ETH_Arbitrage, 2000); //reloop
                 console.error(`ERROR IN monitor_USDT_ETH_Arbitrage`, err);
             });
         }
@@ -160,7 +160,7 @@ class BittrexArbitrage {
 
 
 const cluster = require('cluster');
-const numWorkers = 4; // require('os').cpus().length;
+const numWorkers = 1; // require('os').cpus().length;
 
 //USE MULTIPLE CORES
 if(cluster.isMaster) {

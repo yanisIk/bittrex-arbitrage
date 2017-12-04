@@ -74,7 +74,7 @@ module.exports = class BittrexArbitrageDetector {
                 netBasecoinWin: netBTCWin
             }
 
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- BTC-${opportunity.coin} -> ETH-${opportunity.coin} -> BTC-ETH +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
+            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY: BTC-${opportunity.coin} -> ETH-${opportunity.coin} -> BTC-ETH +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
 
             return opportunity;
         }
@@ -147,7 +147,7 @@ module.exports = class BittrexArbitrageDetector {
                 netBasecoinWin: netETHWin
             }
 
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ETH-${opportunity.coin} -> BTC-${opportunity.coin} -> BTC-ETH +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
+            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY: ETH-${opportunity.coin} -> BTC-${opportunity.coin} -> BTC-ETH +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
             
             //return opportunity;
         }
@@ -222,7 +222,7 @@ module.exports = class BittrexArbitrageDetector {
                 netBasecoinWin: netUSDTWin
             }
 
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- USDT-${opportunity.coin} -> BTC-${opportunity.coin} -> USDT-BTC +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`);
+            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY: USDT-${opportunity.coin} -> BTC-${opportunity.coin} -> USDT-BTC +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`);
 
             //return opportunity;
         }
