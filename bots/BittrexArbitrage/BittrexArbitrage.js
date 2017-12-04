@@ -4,42 +4,51 @@
 
 //UTIL: process.stdout.write("Downloading " + data.length + " bytes\r"); TO OVERWRITE ON SAME LINE
 
-const CONFIG = require("./../../configs/BITTREX_ARBITRAGE.json")
+const CONFIG = require("./../../configs/BITTREX_ARBITRAGE.json");
 const _ = require('lodash');
 const async = require("async");
 
 const BittrexAccountManager = require('./../../services/BittrexAccountManager');
 const BittrexExchangeService = require('./../../services/BittrexExchangeService');
+const BittrexArbitrageDetector = require('./../../services/BittrexArbitrageDetector');
+
+const LoggerService = require('./../../services/LoggerService')
 
 class BittrexArbitrage {
-    constructor(pairs, workerId) {
+    constructor(coinsToTrack, workerId) {
 
         this.workerId = workerId;
+        this.BTC_ETH_COMMON_COINS = coinsToTrack.BTC_ETH_COMMON_COINS; //array of COINS to work with
+        this.BTC_USDT_COMMON_COINS = coinsToTrack.BTC_USDT_COMMON_COINS; //array of COINS to work with
+        this.ETH_USDT_COMMON_COINS = coinsToTrack.ETH_USDT_COMMON_COINS; //array of COINS to work with
 
         this.bittrexAccountManager = new BittrexAccountManager();
         this.bittrexExchangeService = new BittrexExchangeService();
+        this.loggerService = new LoggerService();
 
-        this.pairs = pairs; //array of pair names
-        this.ticks = {}; ////key: marketName, value: tick
-        this.openBids = {} //key: orderId, value: order
-        this.openAsks = {} //key: orderId, value: order
+        //this.ticksEventEmitter = this.bittrexExchangeService.subscribeToTicks();
+        // this.bittrexExchangeService.subscribeToOrders(pairs);
+        // this.buyOrdersEventEmitter = this.bittrexExchangeService.getBuyOrdersEmitter();
+        // this.sellOrdersEventEmitter = this.bittrexExchangeService.getSellOrdersEmitter();
 
-        this.ticksEventEmitter = null;
+        this.arbitrageDetector = new BittrexArbitrageDetector(this.ticksEventEmitter);
+
+        this.buyQueue = null;
+        this.sellQueue = null;
+        this.convertQueue = null;
+
+        this.isMonitoring = false;
+
     }
 
-    async init() {
-        //subscribe to ticks
-        this.ticksEventEmitter = this.bittrexExchangeService.subscribeToTicks();
-        this.ticksEventEmitter.on("TICK", tick => {
-            this.ticks[tick.MarketName] = tick;
-        });
+    init() {
+        
         //init bittrex account
         //await this.bittrexAccountManager.init();
         
-        
         this.buyQueue = async.queue(async (opportunity, cb) => {
             try {
-                const buyOrder = await this.bittrexExchangeService.buyMarket(opportunity.pairToBuy, opportunity.qtyToBuyInCOIN);
+                const buyOrder = await this.bittrexExchangeService.buyMarket(opportunity.pairToBuy, opportunity.rateToBuyInBasecoin, opportunity.qtyToBuyInCOIN);
                 if ( !(buyOrder.QuantityBought > 0) ) return cb();
 
                 //Update opportunity
@@ -88,153 +97,126 @@ class BittrexArbitrage {
             }
         }, CONFIG.SELL_CONCURENCY);
 
-        this.logQueue = async.queue(async (opportunity, cb) => {
-            if (CONFIG.IS_LOG_ACTIVE) console.log(` ----------- ARBITRAGE OPPORTUNITY EXECUTED ${opportunity.id} ------------- \n`, JSON.stringify(opportunity));
-            cb();
-        }, CONFIG.LOG_CONCURENCY);
     }
-
-    /**
-     * 
-     * @param {*} coin
-     * @returns Opportunity or null 
-     */
-    detectArbitrageOpportunity(coin) {
-        if ( !(this.ticks["BTC-"+coin] && this.ticks["ETH-"+coin] && this.ticks["BTC-ETH"]) ) return;
-
-        const BTC_X_BID = this.ticks["BTC-"+coin].Bid;
-        const BTC_X_ASK = this.ticks["BTC-"+coin].Ask;
-
-        const ETH_X_BID = this.ticks["ETH-"+coin].Bid;
-        const ETH_X_ASK = this.ticks["ETH-"+coin].Ask;
-
-        const BTC_ETH_BID = this.ticks["BTC-ETH"].Bid;
-        const BTC_ETH_ASK = this.ticks["BTC-ETH"].Ask;
-
-        //Check if buy with bitcoin (if can buy in btc, sell in eth and convert eth in btc with profit)
-        // if [ETH-X]bid * [BTC-ETH]bid  > [BTC-X]ask 
-        if ((ETH_X_BID * BTC_ETH_BID) > BTC_X_ASK) {
-            // ( ( [ETH-X]bid * [BTC-ETH]bid ) - [BTC-X]ask ) / [BTC-X]ask
-            // X sold for 2 ETH, 2 ETH sold for 600 BTC vs X sold for 500 BTC 
-            const grossPercentageWin = ( ( ( ETH_X_BID * BTC_ETH_BID ) - BTC_X_ASK )  / BTC_X_ASK ) * 100;
-            const netPercentageWin = grossPercentageWin - CONFIG.BITTREX_TRIANGULAR_ARBITRAGE_PERCENTAGE_FEE; 
-            if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
-            
-            //Calculate quantity to buy
-            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["BTC-"+coin];
-            const qtyToBuyInBTC = qtyToBuyInCOIN * BTC_X_ASK;
-
-            const grossBTCWin = qtyToBuyInBTC * (grossPercentageWin/100);
-            const netBTCWin = qtyToBuyInBTC * (netPercentageWin/100);
-
-            const opportunity = {
-                id: Date.now(), 
-                baseCoin: "BTC",
-                coin: coin,
-                pairToBuy: `BTC-${coin}`,
-                pairToSell: `ETH-${coin}`,
-                qtyToBuyInCOIN: qtyToBuyInCOIN,
-                qtyToBuyInBasecoin: qtyToBuyInBTC,
-                grossPercentageWin: grossPercentageWin,
-                netPercentageWin: netPercentageWin,
-                grossBasecoinWin: grossBTCWin,
-                netBasecoinWin: netBTCWin
-            }
-
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n ---------- ARBITRAGE OPPORTUNITY BTC-${opportunity.coin} +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
-            // if (IS_LOG_ACTIVE) console.log(`BTC-${coin}  ASK: ${BTC_X_ASK.Quantity} ${coin} @ ${BTC_X_ASK.toFixed(8)} BTC/${coin}   (Max Qty: ${maxQuantityToBuyInBtc.toFixed(5)} BTC) (Type: ${BTC_X_ASK.Type})`);
-            // if (IS_LOG_ACTIVE) console.log(`ETH-${coin}  BID: ${ETH_X_BID.Quantity} ${coin} @ ${ETH_X_BID.toFixed(8)} ETH/${coin}   (Max Qty: ${maxQuantityToSellInEth.toFixed(5)} ETH) (Type: ${ETH_X_BID.Type})`);
-            // if (IS_LOG_ACTIVE) console.log(`BTC-ETH  ASK: ${BTC_ETH_ASK.Quantity} BTC @ ${BTC_ETH_ASK.toFixed(8)} BTC/ETH     (Max Qty: ${maxEthToSell.toFixed(5)} ETH) (Type: ${BTC_ETH_ASK.Type})`);
-            // if (IS_LOG_ACTIVE) console.log(`Potential Max Benefit:              ${maxPotentialWinInBtc.toFixed(5)} BTC`);
-            // if (IS_LOG_ACTIVE) console.log(`Potential Benefit With ${MAX_BTC_TO_BUY} BTC:   ${maxPotentialWinWithMAX_BTC_TO_BUY.toFixed(5)} BTC`);
-            // if (IS_LOG_ACTIVE) console.log("\n");
-
-            return opportunity;
-        }
-
-        //Check if buy with eth
-        if ((BTC_X_BID * BTC_ETH_BID) > ETH_X_ASK) {
-            const grossPercentageWin = ( ( ( BTC_X_BID * BTC_ETH_BID ) - ETH_X_ASK )  / ETH_X_ASK ) * 100;
-            const netPercentageWin = grossPercentageWin - CONFIG.BITTREX_TRIANGULAR_ARBITRAGE_PERCENTAGE_FEE;
-            if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
-            
-            //Calculate quantity to buy
-            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["ETH-"+coin];
-            const qtyToBuyInETH = qtyToBuyInCOIN * ETH_X_ASK;
-
-            const grossETHWin = qtyToBuyInETH * (grossPercentageWin/100);
-            const netETHWin = qtyToBuyInETH * (netPercentageWin/100);
-
-            const opportunity = {
-                id: Date.now(), 
-                baseCoin: "ETH",
-                coin: coin,
-                pairToBuy: `ETH-${coin}`,
-                pairToSell: `BTC-${coin}`,
-                qtyToBuyInCOIN: qtyToBuyInCOIN,
-                qtyToBuyInBasecoin: qtyToBuyInETH,
-                grossPercentageWin: grossPercentageWin,
-                netPercentageWin: netPercentageWin,
-                grossBasecoinWin: grossETHWin,
-                netBasecoinWin: netBasecoinWin
-            }
-
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n ---------- ARBITRAGE OPPORTUNITY ETH-${opportunity.coin} +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
-            
-            return opportunity;
-        }
-
-        return null;
-    }
-
-    
 
     startMonitoring() {
-        console.log("Starting Monitoring...")
-        const PAIRS_TO_IGNORE = {"BTC-ETH": true}
         
-        this.ticksEventEmitter.on("TICK", async tick => {
-            //ignore BTC-ETH
-            if (PAIRS_TO_IGNORE[tick.MarketName]) return;
-            let coins = tick.MarketName.split("-");
-            let baseCoin = coins[0];
-            let coin = coins[1];
+        if (this.isMonitoring) return;
 
-            let opportunity = this.detectArbitrageOpportunity(coin);
-            if (!opportunity) return;
+        const monitor_BTC_ETH_Arbitrage = () => {
+            async.eachLimit(this.BTC_ETH_COMMON_COINS, 2, async (coin, cb) => {
+                const opportunity = await this.arbitrageDetector.detect_BTC_ETH_Arbitrage(coin);
+                if (opportunity) this.buyQueue.push(opportunity);
+                //cb();
+            }, (err) => {
+                if (!err) return monitor_BTC_ETH_Arbitrage(); //reloop
+                console.error(`ERROR IN monitor_BTC_ETH_Arbitrage`, err);
+            });
+        }
 
-            //The queue will handle the next tasks by itself
-            //buykQueue.push(opportunity, (err, result) => {
+        const monitor_ETH_BTC_Arbitrage = () => {
+            async.eachLimit(this.BTC_ETH_COMMON_COINS, 2, async (coin, cb) => {
+                const opportunity = await this.arbitrageDetector.detect_ETH_BTC_Arbitrage(coin);
+                if (opportunity) this.buyQueue.push(opportunity);
+                //cb();
+            }, (err) => {
+                if (!err) return monitor_ETH_BTC_Arbitrage(); //reloop
+                console.error(`ERROR IN monitor_ETH_BTC_Arbitrage`, err);
+            });
+        }
 
-        });
+        const monitor_USDT_BTC_Arbitrage = () => {
+            async.eachLimit(this.BTC_USDT_COMMON_COINS, 1, async (coin, cb) => {
+                const opportunity = await this.arbitrageDetector.detect_USDT_BTC_Arbitrage(coin);
+                if (opportunity) this.buyQueue.push(opportunity);
+                //cb();
+            }, (err) => {
+                if (!err) return monitor_USDT_BTC_Arbitrage(); //reloop
+                console.error(`ERROR IN monitor_USDT_BTC_Arbitrage`, err);
+            });
+        }
 
-        
+        const monitor_USDT_ETH_Arbitrage = () => {
+            async.eachLimit(this.ETH_USDT_COMMON_COINS, 1, async (coin, cb) => {
+                const opportunity = await this.arbitrageDetector.detect_USDT_ETH_Arbitrage(coin);
+                if (opportunity) this.buyQueue.push(opportunity);
+                //cb();
+            }, (err) => {
+                if (!err) return monitor_USDT_ETH_Arbitrage(); //reloop
+                console.error(`ERROR IN monitor_USDT_ETH_Arbitrage`, err);
+            });
+        }
+
+        this.isMonitoring = true;
+
+        monitor_BTC_ETH_Arbitrage();
+        monitor_ETH_BTC_Arbitrage();
+        monitor_USDT_BTC_Arbitrage();
+        monitor_USDT_ETH_Arbitrage();
+
     }
-
-    
 
 }
 
 
 const cluster = require('cluster');
-const numWorkers = 1; // require('os').cpus().length;
+const numWorkers = 4; // require('os').cpus().length;
 
 //USE MULTIPLE CORES
 if(cluster.isMaster) {
     
     console.log('Master cluster setting up ' + numWorkers + ' worker(s)...');
-    const ALL_BITTREX_PAIRS_CHUNKS = _.chunk(CONFIG.ALL_BITTREX_PAIRS, numWorkers);
-    if (numWorkers === 1) ALL_BITTREX_PAIRS_CHUNKS[0] = CONFIG.ALL_BITTREX_PAIRS;
+    
+    async function prepareWorkers() {
+        const bittrexExchangeService = new BittrexExchangeService();
+        const ALL_BITTREX_PAIRS = await bittrexExchangeService.getAllPairs();
 
-    for(var i = 0; i < numWorkers; i++) {
-        let worker = cluster.fork();
-        worker.send({workerId: i, pairs: ALL_BITTREX_PAIRS_CHUNKS[i]})
+        const BTC_PAIRS = ALL_BITTREX_PAIRS.filter(p => p.split("-")[0] === "BTC").map(p => p.split("-")[1]);
+        const ETH_PAIRS = ALL_BITTREX_PAIRS.filter(p => p.split("-")[0] === "ETH").map(p => p.split("-")[1]);
+        const USDT_PAIRS = ALL_BITTREX_PAIRS.filter(p => p.split("-")[0] === "USDT").map(p => p.split("-")[1]);
+
+        let BTC_ETH_COMMON_PAIRS = [];
+        BTC_PAIRS.forEach(coin => {
+            if (ETH_PAIRS.includes(coin)) BTC_ETH_COMMON_PAIRS.push(coin);
+        }); 
+
+        let BTC_USDT_COMMON_PAIRS = [];
+        BTC_PAIRS.forEach(coin => {
+            if (USDT_PAIRS.includes(coin)) BTC_USDT_COMMON_PAIRS.push(coin);
+        }); 
+
+        let ETH_USDT_COMMON_PAIRS = [];
+        ETH_PAIRS.forEach(coin => {
+            if (USDT_PAIRS.includes(coin)) ETH_USDT_COMMON_PAIRS.push(coin);
+        });
+
+        const BTC_ETH_COMMON_PAIRS_CHUNKED = _.chunk(BTC_ETH_COMMON_PAIRS, BTC_ETH_COMMON_PAIRS.length / numWorkers);
+        const BTC_USDT_COMMON_PAIRS_CHUNKED = _.chunk(BTC_USDT_COMMON_PAIRS, BTC_USDT_COMMON_PAIRS.length / numWorkers);
+        const ETH_USDT_COMMON_PAIRS_CHUNKED = _.chunk(ETH_USDT_COMMON_PAIRS, ETH_USDT_COMMON_PAIRS.length / numWorkers);
+        
+        for(var i = 0; i < numWorkers; i++) {
+            let worker = cluster.fork();
+            worker.send({workerId: i, coins: {
+                BTC_ETH_COMMON_COINS: BTC_ETH_COMMON_PAIRS_CHUNKED[i],
+                BTC_USDT_COMMON_COINS: BTC_USDT_COMMON_PAIRS_CHUNKED[i],
+                ETH_USDT_COMMON_COINS: ETH_USDT_COMMON_PAIRS_CHUNKED[i],
+            }})
+        }
     }
+
+    prepareWorkers().catch(err => console.error(err));
+    
 } else {
     process.on('message', async (data) => {
-        console.log(`WORKER ${data.workerId} RECEIVED ${data.pairs.length} PAIRS ${data.pairs[0]} ...`);
-        const bittrexArbitrageBot = new BittrexArbitrage(data.pairs, data.workerId);
-        await bittrexArbitrageBot.init();
+        global.WORKER_ID = data.workerId;
+        global.CONFIG = CONFIG;
+        console.log(`WORKER#${data.workerId} RECEIVED \n`+
+                    `BTC-ETH: ${data.coins.BTC_ETH_COMMON_COINS.length} COINS TO TRACK (${data.coins.BTC_ETH_COMMON_COINS[0]} ...) \n`+
+                    `BTC-USDT: ${data.coins.BTC_USDT_COMMON_COINS.length} COINS TO TRACK (${data.coins.BTC_USDT_COMMON_COINS[0]} ...) \n`+
+                    `ETH-USDT: ${data.coins.ETH_USDT_COMMON_COINS.length} COINS TO TRACK (${data.coins.ETH_USDT_COMMON_COINS[0]} ...) \n`
+        );
+        const bittrexArbitrageBot = new BittrexArbitrage(data.coins, data.workerId);
+        bittrexArbitrageBot.init();
         bittrexArbitrageBot.startMonitoring();
     });
 }

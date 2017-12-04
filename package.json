@@ -9,9 +9,13 @@
   "author": "Yanis Ikene",
   "license": "ISC",
   "dependencies": {
-    "async": "^2.5.0",
+    "async": "^2.6.0",
     "bluebird": "^3.5.1",
+    "elasticsearch": "^14.0.0",
     "lodash": "^4.17.4",
-    "node-bittrex-api": "file:node-bittrex-api"
+    "multi-progress": "^2.0.0",
+    "node-bittrex-api": "file:node-bittrex-api",
+    "node-progress": "^0.1.0",
+    "progress": "^2.0.0"
   }
 }

@@ -11,14 +11,19 @@ bittrex.options({
 });
 
 const EventEmitter = require('events');
+const ProgressBar = require('progress');
+
+let singleton = null;
 
 module.exports = class BittrexExchangeService {
 
     constructor() {
+        if (singleton) return singleton;
+        singleton = this;
+
         this.sellOrdersEmitter;
         this.buyOrdersEmitter;
         this.ticksEmitter;
-        this.fiveMinTick
     }
 
     subscribeToStatWindow() {
@@ -30,6 +35,9 @@ module.exports = class BittrexExchangeService {
         this.sellOrdersEmitter = new EventEmitter();
         this.buyOrdersEmitter = new EventEmitter();
         
+        let ordersProgress = null;
+        if (CONFIG.IS_LOG_ACTIVE) ordersProgress = new ProgressBar(`WORKER#${WORKER_ID} : [:type][:marketName] :rate orders/s (:current orders since :elapsed s)`, { total: 999999999999 });
+
         bittrex.websockets.subscribe(pairs, (data, client) => {    
             
             //Emit orders and updates order book
@@ -39,9 +47,11 @@ module.exports = class BittrexExchangeService {
                     //and have always up to date data
                     setImmediate(() => pairOrders.Sells.forEach(sellOrder => {
                         this.sellOrdersEmitter.emit(pairOrders.MarketName, sellOrder);
+                        if (CONFIG.IS_LOG_ACTIVE) ordersProgress.tick({marketName: pairOrders.MarketName, type: "SELL"});
                     }));
                     setImmediate(() => pairOrders.Buys.forEach(buyOrder => {
                         this.buyOrdersEmitter.emit(pairOrders.MarketName, buyOrder);
+                        if (CONFIG.IS_LOG_ACTIVE) ordersProgress.tick({marketName: pairOrders.MarketName, type: "BUY"});
                     }));
                 });
             }
@@ -50,23 +60,48 @@ module.exports = class BittrexExchangeService {
         return {sellOrdersEmitter: this.sellOrdersEmitter, buyOrdersEmitter: this.buyOrdersEmitter};
     }
 
-    subscribeToTicks() {
+    subscribeToTicks(pairs) {
         if (this.ticksEmitter) return this.ticksEmitter;
         this.ticksEmitter = new EventEmitter();
+
+        let ticksProgress = null;
+        if (!CONFIG.IS_LOG_ACTIVE) ticksProgress = new ProgressBar(`WORKER#${WORKER_ID} : [:marketName] :rate ticks/s (:current ticks since :elapsed s)`, { total: 999999999999 });
         
+        let ticksBatchId = null;
         bittrex.websockets.listen((data, client) => {    
             if (data.M === 'updateSummaryState') {
+                ticksBatchId = Date.now();
                 data.A.forEach((ticks) => {
                     //setImmediate to run before all other callbacks in the program
                     //and have always up to date data
                     setImmediate(() => ticks.Deltas.forEach((tick) => {
+                        tick.BatchId = ticksBatchId;
                         this.ticksEmitter.emit('TICK', tick);
+                        if (!CONFIG.IS_LOG_ACTIVE) ticksProgress.tick({marketName: tick.MarketName});
                     }));
                 });    
             }
-        })
+        });
 
         return this.ticksEmitter;
+    }
+
+    getBuyOrdersEmitter() {
+        return this.buyOrdersEmitter;
+    }
+
+    getSellOrdersEmitter() {
+        return this.sellOrdersEmitter;
+    }
+
+    async getAllPairs() {
+        return (await bittrex.getmarketsAsync()).result.map(m => m.MarketName);
+    }
+
+    async getTicker(marketName) {
+        const ticker = await bittrex.gettickerAsync({market: marketName})
+        if (!ticker.result) throw new Error(ticker.message);
+        return ticker.result;
     }
 
     async buyLimitGoodUntilCanceled(pair, rate, qty) {
@@ -113,14 +148,19 @@ module.exports = class BittrexExchangeService {
 
     }
 
-    //TODO CHECK HOW TO MARKET ORDERS
-    async buyMarket(pair, qty) {
+    /**
+     * NO MARKET ORDERS ON BITTREX. REPLACED BY LIMIT FILL OR KILL
+     * @param {*} pair 
+     * @param {*} rate 
+     * @param {*} qty 
+     */
+    async buyMarket(pair, rate, qty) {
         
         const buyOrder = await bittrex.tradebuyAsync({
                 MarketName: pair,
-                OrderType: 'MARKET',
+                OrderType: 'LIMIT',
                 Quantity: qty,
-                Rate: 0,
+                Rate: rate,
                 TimeInEffect: 'FILL_OR_KILL', // supported options are 'IMMEDIATE_OR_CANCEL', 'GOOD_TIL_CANCELLED', 'FILL_OR_KILL'
                 ConditionType: 'NONE', // supported options are 'NONE', 'GREATER_THAN', 'LESS_THAN'
                 Target: 0, // used in conjunction with ConditionType
@@ -179,14 +219,19 @@ module.exports = class BittrexExchangeService {
         throw new Error(sellOrderStatus.message);
     }
 
-    //TODO CHECK HOW TO MARKET ORDERS
-    async sellMarket(pair, qty) {
+    /**
+     * NO MARKET ORDERS ON BITTREX. REPLACED BY LIMIT FILL OR KILL
+     * @param {*} pair 
+     * @param {*} rate 
+     * @param {*} qty 
+     */
+    async sellMarket(pair, rate, qty) {
 
         const sellOrder = await bittrex.tradesellAsync({
                 MarketName: pair,
-                OrderType: 'MARKET',
+                OrderType: 'LIMIT',
                 Quantity: qty,
-                Rate: 0, //this is the ask when profit calculation was made
+                Rate: rate, //this is the ask when profit calculation was made
                 TimeInEffect: 'FILL_OR_KILL', // supported options are 'IMMEDIATE_OR_CANCEL', 'GOOD_TIL_CANCELLED', 'FILL_OR_KILL'
                 ConditionType: 'NONE', // supported options are 'NONE', 'GREATER_THAN', 'LESS_THAN'
                 Target: 0, // used in conjunction with ConditionType

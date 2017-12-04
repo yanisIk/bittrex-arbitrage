@@ -1,4 +1,4 @@
-class LoggerService {
+module.exports = class LoggerService {
 
     constructor() {
 

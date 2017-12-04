@@ -40,7 +40,7 @@ var NodeBittrexApi = function() {
       websockets: {
         autoReconnect: true,
       },
-      requestTimeoutInSeconds: 15,
+      requestTimeoutInSeconds: 1,
     };
   
     var lastNonce = 0;
@@ -99,7 +99,7 @@ var NodeBittrexApi = function() {
       op.headers.apisign = hmac_sha512.HmacSHA512(uri, opts.apisecret); // setting the HMAC hash `apisign` http header
       op.uri = uri;
       op.timeout = opts.requestTimeoutInSeconds * 1000;
-  
+
       return op;
     };
   
