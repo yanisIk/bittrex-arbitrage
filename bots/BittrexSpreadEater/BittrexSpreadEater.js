@@ -4,7 +4,7 @@
 
 //UTIL: process.stdout.write("Downloading " + data.length + " bytes\r"); TO OVERWRITE ON SAME LINE
 
-const CONFIG = require("./../../configs/BITTREX_ARBITRAGE.json");
+const CONFIG = require("./../../configs/BITTREX_SPREAD_EATER.json");
 const _ = require('lodash');
 const async = require("async");
 
@@ -90,7 +90,7 @@ class BittrexSpreadEater {
                 //cb();
             }, (err) => {
                 if (!err) return monitorPairs(); //reloop
-                console.error(`ERROR IN monitorPairs()`, err);
+                console.error(`ERROR IN monitorPairs()`, JSON.stringify(err));
             });
         }
 
@@ -125,15 +125,15 @@ if(cluster.isMaster) {
         }
     }
 
-    prepareWorkers().catch(err => console.error(err));
+    prepareWorkers();
     
 } else {
     process.on('message', async (data) => {
         global.WORKER_ID = data.workerId;
         global.CONFIG = CONFIG;
         console.log(`WORKER#${data.workerId} RECEIVED ${data.pairs.length} PAIRS`)
-        const bittrexArbitrageBot = new BittrexSpreadEater(data.pairs, data.workerId);
-        bittrexArbitrageBot.init();
-        bittrexArbitrageBot.startMonitoring();
+        const bittrexSpreadEaterBot = new BittrexSpreadEater(data.pairs, data.workerId);
+        bittrexSpreadEaterBot.init();
+        bittrexSpreadEaterBot.startMonitoring();
     });
 }
