@@ -29,18 +29,28 @@ module.exports = class BittrexSpreadOpportunityDetector {
 
 
          //TODO calculate profit to make
-        if (spreadPercentage >= 2) {
-            if (CONFIG.IS_LOG_ACTIVE) console.log(
+        if (spreadPercentage >= 6) {
+            if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(
                 `---------- [${pair}] Spread=${spreadPercentage.toFixed(4)}% (WORKER#${WORKER_ID})--------- \n`+
                 `Bid=${ticker.Bid}, Ask=${ticker.Ask} \n`+
                 `BuyAt=${buyAt}, SellAt=${sellAt} \n`+
-                `Profit=${grossProfitPercentage}% \n`);            
+                `Profit=${grossProfitPercentage.toFixed(4)}% \n`);            
+        
+                const opportunity = {
+                    id: Date.now(), 
+                    pair: pair,
+                    spreadPercentage: spreadPercentage, 
+                    buyRate: buyAt,
+                    sellRate: sellAt,
+                    //qtyToBuy: qtyToBuy,
+                    grossProfitPercentage: grossProfitPercentage,
+                    netProfitPercentage: netProfitPercentage,
+                }
+
+                return opportunity;
         }
 
         return null;
-
-       
-
     }
 
     

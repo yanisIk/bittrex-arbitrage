@@ -5,6 +5,7 @@ module.exports = class BittrexArbitrageDetector {
     
     constructor(ticksEventEmitter) {
         this.bittrexExchangeService = new BittrexExchangeService();
+        this.counter = 0;
     }
     
     /**
@@ -14,7 +15,7 @@ module.exports = class BittrexArbitrageDetector {
     async detect_BTC_ETH_Arbitrage(coin) {
         
         let BTC_X_TICKER, ETH_X_TICKER, BTC_ETH_TICKER;
-        
+
         //If one request throws an error, skip the coin and move on
         try {
             [BTC_X_TICKER, ETH_X_TICKER, BTC_ETH_TICKER] = await Promise.all(["BTC-"+coin, "ETH-"+coin, "BTC-ETH"].map(marketName => this.bittrexExchangeService.getTicker(marketName)));            
@@ -46,7 +47,7 @@ module.exports = class BittrexArbitrageDetector {
             const grossPercentageWin = ( ( ( ETH_X_BID * BTC_ETH_BID ) - BTC_X_ASK )  / BTC_X_ASK ) * 100;
             const netPercentageWin = grossPercentageWin - CONFIG.BITTREX_TRIANGULAR_ARBITRAGE_PERCENTAGE_FEE; 
 
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- BTC-${coin} -> ETH-${coin} -> BTC-ETH  +${grossPercentageWin.toFixed(4)}% gross  -------------  \n`);
+            //if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- BTC-${coin} -> ETH-${coin} -> BTC-ETH  +${grossPercentageWin.toFixed(4)}% gross  -------------  \n`);
 
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             
@@ -64,9 +65,9 @@ module.exports = class BittrexArbitrageDetector {
                 pairToBuy: `BTC-${coin}`,
                 pairToSell: `ETH-${coin}`,
                 pairToConvert: `BTC-ETH`,
-                convertType: `SELL`,
-                rateToBuyInBasecoin: BTC_X_ASK,
-                qtyToBuyInCOIN: qtyToBuyInCOIN,
+                convertOrderType: `SELL`,
+                rateToBuy: BTC_X_ASK,
+                qtyToBuy: qtyToBuyInCOIN,
                 qtyToBuyInBasecoin: qtyToBuyInBTC,
                 grossPercentageWin: grossPercentageWin,
                 netPercentageWin: netPercentageWin,
@@ -74,7 +75,9 @@ module.exports = class BittrexArbitrageDetector {
                 netBasecoinWin: netBTCWin
             }
 
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY: BTC-${opportunity.coin} -> ETH-${opportunity.coin} -> BTC-ETH +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
+            this.counter++;
+
+            if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY (${this.counter}) : BTC-${opportunity.coin} -> ETH-${opportunity.coin} -> BTC-ETH +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
 
             return opportunity;
         }
@@ -119,7 +122,7 @@ module.exports = class BittrexArbitrageDetector {
             const grossPercentageWin = ( ( ( BTC_X_BID * BTC_ETH_ASK ) - ETH_X_ASK )  / ETH_X_ASK ) * 100;
             const netPercentageWin = grossPercentageWin - CONFIG.BITTREX_TRIANGULAR_ARBITRAGE_PERCENTAGE_FEE;
 
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ETH-${coin} -> BTC-${coin} -> BTC-ETH  +${grossPercentageWin.toFixed(4)}% gross -------------  \n`);            
+            //if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ETH-${coin} -> BTC-${coin} -> BTC-ETH  +${grossPercentageWin.toFixed(4)}% gross -------------  \n`);            
 
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             
@@ -147,9 +150,11 @@ module.exports = class BittrexArbitrageDetector {
                 netBasecoinWin: netETHWin
             }
 
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY: ETH-${opportunity.coin} -> BTC-${opportunity.coin} -> BTC-ETH +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
+            this.counter++;
+
+            if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY (${this.counter}) : ETH-${opportunity.coin} -> BTC-${opportunity.coin} -> BTC-ETH +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
             
-            //return opportunity;
+            return opportunity;
         }
 
     }
@@ -196,7 +201,7 @@ module.exports = class BittrexArbitrageDetector {
             const netPercentageWin = grossPercentageWin - CONFIG.BITTREX_TRIANGULAR_ARBITRAGE_PERCENTAGE_FEE; 
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- USDT-${coin} -> BTC-${coin} -> USDT-BTC  +${grossPercentageWin.toFixed(4)}% gross  -------------  \n`);
+            //if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- USDT-${coin} -> BTC-${coin} -> USDT-BTC  +${grossPercentageWin.toFixed(4)}% gross  -------------  \n`);
             
             //Calculate quantity to buy
             const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["BTC-"+coin];
@@ -222,9 +227,11 @@ module.exports = class BittrexArbitrageDetector {
                 netBasecoinWin: netUSDTWin
             }
 
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY: USDT-${opportunity.coin} -> BTC-${opportunity.coin} -> USDT-BTC +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`);
+            this.counter++;
 
-            //return opportunity;
+            if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY (${this.counter}) : USDT-${opportunity.coin} -> BTC-${opportunity.coin} -> USDT-BTC +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`);
+
+            return opportunity;
         }
 
     }
@@ -269,7 +276,7 @@ module.exports = class BittrexArbitrageDetector {
             const grossPercentageWin = ( ( ( ETH_X_BID * USDT_ETH_BID ) - USDT_X_ASK )  / USDT_X_ASK ) * 100;
             const netPercentageWin = grossPercentageWin - CONFIG.BITTREX_TRIANGULAR_ARBITRAGE_PERCENTAGE_FEE; 
 
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- USDT-${coin} -> ETH-${coin} -> USDT-ETH  +${grossPercentageWin.toFixed(4)}% gross  -------------  \n`);            
+            //if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- USDT-${coin} -> ETH-${coin} -> USDT-ETH  +${grossPercentageWin.toFixed(4)}% gross  -------------  \n`);            
 
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             
@@ -297,9 +304,11 @@ module.exports = class BittrexArbitrageDetector {
                 netBasecoinWin: netUSDTWin
             }
 
-            if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY USDT-${opportunity.coin} -> ETH-${opportunity.coin} -> USDT-ETH  +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`);
+            this.counter++;
 
-            //return opportunity;
+            if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY (${this.counter}) : USDT-${opportunity.coin} -> ETH-${opportunity.coin} -> USDT-ETH  +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`);
+
+            return opportunity;
         }
 
     }
@@ -357,7 +366,7 @@ module.exports = class BittrexArbitrageDetector {
             const grossPercentageWin = ( ( ( ETH_X_BID * BTC_ETH_BID ) - BTC_X_ASK )  / BTC_X_ASK ) * 100;
             const netPercentageWin = grossPercentageWin - CONFIG.BITTREX_TRIANGULAR_ARBITRAGE_PERCENTAGE_FEE; 
 
-            //if (CONFIG.IS_LOG_ACTIVE) console.log(`\n ---------- BTC-${coin} -> ETH-${coin} -> BTC-ETH  +${netPercentageWin.toFixed(4)}%   -------------  \n`);
+            //if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n ---------- BTC-${coin} -> ETH-${coin} -> BTC-ETH  +${netPercentageWin.toFixed(4)}%   -------------  \n`);
 
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             

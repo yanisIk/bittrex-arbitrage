@@ -104,6 +104,12 @@ module.exports = class BittrexExchangeService {
         return ticker.result;
     }
 
+    async getOrderBook(marketName) {
+        const orderBook = await bittrex.getorderbookAsync({market: marketName, type: 'both'})
+        if (!orderBook.result) throw new Error(orderBook.message);
+        return orderBook.result;
+    }
+
     async buyLimitGoodUntilCanceled(pair, rate, qty) {
         
             const buyOrder = await bittrex.tradebuyAsync({
@@ -148,13 +154,7 @@ module.exports = class BittrexExchangeService {
 
     }
 
-    /**
-     * NO MARKET ORDERS ON BITTREX. REPLACED BY LIMIT FILL OR KILL
-     * @param {*} pair 
-     * @param {*} rate 
-     * @param {*} qty 
-     */
-    async buyMarket(pair, rate, qty) {
+    async buyLimitFillOrKill(pair, rate, qty) {
         
         const buyOrder = await bittrex.tradebuyAsync({
                 MarketName: pair,
@@ -174,6 +174,26 @@ module.exports = class BittrexExchangeService {
         }
         throw new Error(buyOrderStatus.message);
 
+    }
+
+    async buyConditional(pair, qty, condition, target) {
+        const buyOrder = await bittrex.tradebuyAsync({
+            MarketName: pair,
+            OrderType: 'CONDITIONAL',
+            Quantity: target,
+            Rate: rate,
+            TimeInEffect: 'GOOD_TIL_CANCELLED', // supported options are 'IMMEDIATE_OR_CANCEL', 'GOOD_TIL_CANCELLED', 'FILL_OR_KILL'
+            ConditionType: condition, // supported options are 'NONE', 'GREATER_THAN', 'LESS_THAN'
+            Target: target, // used in conjunction with ConditionType
+        });
+        if (!buyOrder.success) throw new Error(buyOrder.message);
+        const buyOrderStatus = await this.getClosedOrder(buyOrder.result.uuid);
+        if (CONFIG.IS_LOG_ACTIVE) console.log("BUY CONDITIONAL ORDER RESPONSE:", buyOrderStatus);
+        if (buyOrderStatus.success) {
+            buyOrderStatus.result.QuantityBought = buyOrderStatus.result.Quantity - buyOrderStatus.result.QuantityRemaining;
+            return buyOrderStatus.result;
+        }
+        throw new Error(buyOrderStatus.message);
     }
 
     async sellLimitGoodUntilCanceled(pair, rate, qty) {
@@ -219,13 +239,7 @@ module.exports = class BittrexExchangeService {
         throw new Error(sellOrderStatus.message);
     }
 
-    /**
-     * NO MARKET ORDERS ON BITTREX. REPLACED BY LIMIT FILL OR KILL
-     * @param {*} pair 
-     * @param {*} rate 
-     * @param {*} qty 
-     */
-    async sellMarket(pair, rate, qty) {
+    async sellLimitFillOrKill(pair, rate, qty) {
 
         const sellOrder = await bittrex.tradesellAsync({
                 MarketName: pair,
@@ -241,6 +255,26 @@ module.exports = class BittrexExchangeService {
         if (CONFIG.IS_LOG_ACTIVE) console.log("SELL MARKET ORDER RESPONSE:", sellOrderStatus);
         if (sellOrderStatus.success) {
             sellOrderStatus.result.QuantitySold = sellOrderStatus.result.Quantity - sellOrderStatus.result.QuantityRemaining;
+            return sellOrderStatus.result;
+        }
+        throw new Error(sellOrderStatus.message);
+    }
+
+    async sellConditional(pair, qty, condition, target) {
+        const sellOrder = await bittrex.tradesellAsync({
+            MarketName: pair,
+            OrderType: 'CONDITIONAL',
+            Quantity: qty,
+            Rate: target,
+            TimeInEffect: 'GOOD_TIL_CANCELLED', // supported options are 'IMMEDIATE_OR_CANCEL', 'GOOD_TIL_CANCELLED', 'FILL_OR_KILL'
+            ConditionType: condition, // supported options are 'NONE', 'GREATER_THAN', 'LESS_THAN'
+            Target: target, // used in conjunction with ConditionType
+        });
+        if (!sellOrder.success) throw new Error(sellOrder.message);
+        const sellOrderStatus = await this.getClosedOrder(sellOrder.result.uuid);
+        if (CONFIG.IS_LOG_ACTIVE) console.log("SELL CONDITIONAL ORDER RESPONSE:", sellOrderStatus);
+        if (sellOrderStatus.success) {
+            sellOrderStatus.result.QuantityBought = sellOrderStatus.result.Quantity - sellOrderStatus.result.QuantityRemaining;
             return sellOrderStatus.result;
         }
         throw new Error(sellOrderStatus.message);
@@ -280,5 +314,6 @@ module.exports = class BittrexExchangeService {
             return this.getClosedOrder(orderId, trials);
         }
     }
+
 
 }

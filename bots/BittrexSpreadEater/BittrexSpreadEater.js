@@ -45,7 +45,7 @@ class BittrexSpreadEater {
         
         this.buyQueue = async.queue(async (opportunity, cb) => {
             try {
-                const buyOrder = await this.bittrexExchangeService.buyMarket(opportunity.pairToBuy, opportunity.rateToBuyInBasecoin, opportunity.qtyToBuyInCOIN);
+                const buyOrder = await this.bittrexExchangeService.buyLimitImmediateOrCancel(opportunity.pairToBuy, opportunity.rateToBuy, opportunity.qtyToBuy);
                 if ( !(buyOrder.QuantityBought > 0) ) return cb();
 
                 //Update opportunity
@@ -62,7 +62,8 @@ class BittrexSpreadEater {
 
         this.sellQueue = async.queue(async (opportunity, cb) => {
             try {
-                const sellOrder = await this.bittrexExchangeService.sellMarket(opportunity.pairToSell, opportunity.qtyToBuyInCOIN);
+                //TODO CHECK SELL CONDITION
+                const sellOrder = await this.bittrexExchangeService.sellLimitConditional(opportunity.pairToSell, opportunity.rateToSell, opportunity.qtyToSell);
                 if ( !(sellOrder.QuantitySold > 0) ) return cb();
 
                 //Update opportunity
@@ -82,10 +83,16 @@ class BittrexSpreadEater {
     startMonitoring() {
         
         if (this.isMonitoring) return;
+        const ProgressBar = require('progress');
+        let consoleLogger = null;
+        let sumNetPercentageProfit = 0;
+        let opportunitiesCount = 0;
+        if (!CONFIG.IS_LOG_ACTIVE) consoleLogger = new ProgressBar(`WORKER#${WORKER_ID} : [:avgNetProfitPercentage] :rate opportunities/s (Total: :current since :elapsed s)`, { total: 999999999999 });
 
         const monitorPairs = () => {
-            async.eachLimit(this.pairs, 2, async (pair, cb) => {
+            async.eachLimit(this.pairs, 16, async (pair, cb) => {
                 const opportunity = await this.spreadOpportunityDetector.detectSpreadOpportunity(pair);
+                if (!CONFIG.IS_LOG_ACTIVE && opportunity) consoleLogger.tick({avgNetProfitPercentage: (sumNetPercentageProfit+=opportunity.netProfitPercentage) / (opportunitiesCount++)})
                 //if (opportunity) this.buyQueue.push(opportunity);
                 //cb();
             }, (err) => {
@@ -106,7 +113,7 @@ class BittrexSpreadEater {
 
 
 const cluster = require('cluster');
-const numWorkers = 1; // require('os').cpus().length;
+const numWorkers = 4; // require('os').cpus().length;
 
 //USE MULTIPLE CORES
 if(cluster.isMaster) {

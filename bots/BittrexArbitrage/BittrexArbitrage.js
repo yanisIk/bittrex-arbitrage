@@ -48,7 +48,7 @@ class BittrexArbitrage {
         
         this.buyQueue = async.queue(async (opportunity, cb) => {
             try {
-                const buyOrder = await this.bittrexExchangeService.buyMarket(opportunity.pairToBuy, opportunity.rateToBuyInBasecoin, opportunity.qtyToBuyInCOIN);
+                const buyOrder = await this.bittrexExchangeService.buyLimitImmediateOrCancel(opportunity.pairToBuy, opportunity.rateToBuy, opportunity.qtyToBuy);
                 if ( !(buyOrder.QuantityBought > 0) ) return cb();
 
                 //Update opportunity
@@ -65,7 +65,8 @@ class BittrexArbitrage {
 
         this.sellQueue = async.queue(async (opportunity, cb) => {
             try {
-                const sellOrder = await this.bittrexExchangeService.sellMarket(opportunity.pairToSell, opportunity.qtyToBuyInCOIN);
+                //TODO CHECK SELL CONDITION
+                const sellOrder = await this.bittrexExchangeService.sellLimitConditional(opportunity.pairToSell, opportunity.rateToSell, opportunity.qtyToSell);
                 if ( !(sellOrder.QuantitySold > 0) ) return cb();
 
                 //Update opportunity
@@ -82,11 +83,17 @@ class BittrexArbitrage {
 
         this.convertQueue = async.queue(async (opportunity, cb) => {
             try {
-                const sellOrder = await this.bittrexExchangeService.sellMarket(opportunity.pair);
-                if ( !(sellOrder.QuantitySold > 0) ) return cb();
+                let order;
+                //TODO CHECK SELL CONDITION (create stop loss or not) https://steemit.com/bittrex/@fvris/how-to-use-conditional-sell-orders-in-bittrex
+                if (opportunity.convertOrderType === "BUY")
+                    order = await this.bittrexExchangeService.buyLimitConditional(opportunity.pairToConvert, opportunity.rateToConvert, opportunity.qtyToConvert);
+                if (opportunity.convertOrderType === "SELL")
+                    order = await this.bittrexExchangeService.sellLimitConditional(opportunity.pairToConvert, opportunity.rateToConvert, opportunity.qtyToConvert);
+                
+                if ( !(order.QuantitySold > 0) ) return cb();
 
                 //Update opportunity
-                opportunity.sellOrder = sellOrder;
+                opportunity.order = order;
                 opportunity.lastStep = "SELL";
 
                 this.logQueue.push(opportunity);
@@ -102,10 +109,16 @@ class BittrexArbitrage {
     startMonitoring() {
         
         if (this.isMonitoring) return;
+        const ProgressBar = require('progress');
+        let consoleLogger = null;
+        let sumNetPercentageProfit = 0;
+        let opportunitiesCount = 0;
+        if (CONFIG.IS_LOG_ACTIVE) consoleLogger = new ProgressBar(`WORKER#${WORKER_ID} : [:avgNetPercentageProfit] :rate opportunities/s (Total: :current since :elapsed s)`, { total: 999999999999 });
 
         const monitor_BTC_ETH_Arbitrage = () => {
-            async.eachLimit(this.BTC_ETH_COMMON_COINS, 2, async (coin, cb) => {
+            async.eachLimit(this.BTC_ETH_COMMON_COINS, 4, async (coin, cb) => {
                 const opportunity = await this.arbitrageDetector.detect_BTC_ETH_Arbitrage(coin);
+                //if (CONFIG.IS_LOG_ACTIVE && opportunity) consoleLogger.tick({avgNetPercentageProfit: (sumNetPercentageProfit+=opportunity.netPercentageWin) / (opportunitiesCount++)})
                 //if (opportunity) this.buyQueue.push(opportunity);
                 //cb();
             }, (err) => {
@@ -115,8 +128,9 @@ class BittrexArbitrage {
         }
 
         const monitor_ETH_BTC_Arbitrage = () => {
-            async.eachLimit(this.BTC_ETH_COMMON_COINS, 2, async (coin, cb) => {
+            async.eachLimit(this.BTC_ETH_COMMON_COINS, 4, async (coin, cb) => {
                 const opportunity = await this.arbitrageDetector.detect_ETH_BTC_Arbitrage(coin);
+                //if (CONFIG.IS_LOG_ACTIVE && opportunity) consoleLogger.tick({avgNetPercentageProfit: (sumNetPercentageProfit+=opportunity.netPercentageWin) / (opportunitiesCount++)})
                 //if (opportunity) this.buyQueue.push(opportunity);
                 //cb();
             }, (err) => {
@@ -128,10 +142,11 @@ class BittrexArbitrage {
         const monitor_USDT_BTC_Arbitrage = () => {
             async.eachLimit(this.BTC_USDT_COMMON_COINS, 1, async (coin, cb) => {
                 const opportunity = await this.arbitrageDetector.detect_USDT_BTC_Arbitrage(coin);
+                //if (CONFIG.IS_LOG_ACTIVE && opportunity) consoleLogger.tick({avgNetPercentageProfit: (sumNetPercentageProfit+=opportunity.netPercentageWin) / (opportunitiesCount++)})
                 //if (opportunity) this.buyQueue.push(opportunity);
                 //cb();
             }, (err) => {
-                if (!err) return setTimeout(monitor_USDT_BTC_Arbitrage, 2000); //reloop
+                if (!err) return setTimeout(monitor_USDT_BTC_Arbitrage, 1000); //reloop
                 console.error(`ERROR IN monitor_USDT_BTC_Arbitrage`, err);
             });
         }
@@ -139,10 +154,11 @@ class BittrexArbitrage {
         const monitor_USDT_ETH_Arbitrage = () => {
             async.eachLimit(this.ETH_USDT_COMMON_COINS, 1, async (coin, cb) => {
                 const opportunity = await this.arbitrageDetector.detect_USDT_ETH_Arbitrage(coin);
+                //if (CONFIG.IS_LOG_ACTIVE && opportunity) consoleLogger.tick({avgNetPercentageProfit: (sumNetPercentageProfit+=opportunity.netPercentageWin) / (opportunitiesCount++)})
                 //if (opportunity) this.buyQueue.push(opportunity);
                 //cb();
             }, (err) => {
-                if (!err) return setTimeout(monitor_USDT_ETH_Arbitrage, 2000); //reloop
+                if (!err) return setTimeout(monitor_USDT_ETH_Arbitrage, 1000); //reloop
                 console.error(`ERROR IN monitor_USDT_ETH_Arbitrage`, err);
             });
         }
@@ -160,7 +176,7 @@ class BittrexArbitrage {
 
 
 const cluster = require('cluster');
-const numWorkers = 1; // require('os').cpus().length;
+const numWorkers = 4; // require('os').cpus().length;
 
 //USE MULTIPLE CORES
 if(cluster.isMaster) {
