@@ -24,10 +24,8 @@ module.exports = class BittrexExchangeService {
         this.sellOrdersEmitter;
         this.buyOrdersEmitter;
         this.ticksEmitter;
-    }
 
-    subscribeToStatWindow() {
-        
+        this.openOrders = new Map();
     }
 
     subscribeToOrders(pairs) {
@@ -92,6 +90,10 @@ module.exports = class BittrexExchangeService {
 
     getSellOrdersEmitter() {
         return this.sellOrdersEmitter;
+    }
+
+    async getMarketSummaries() {
+        return (await bittrex.getmarketsummariesAsync()).result;
     }
 
     async getAllPairs() {
@@ -313,6 +315,16 @@ module.exports = class BittrexExchangeService {
             trials += 1;
             return this.getClosedOrder(orderId, trials);
         }
+    }
+
+    /**
+     * 
+     * @param {*} pair 
+     * @param {*} rate 
+     * @param {*} qty 
+     */
+    async outbid(pair, rate, qty) {
+
     }
 
 

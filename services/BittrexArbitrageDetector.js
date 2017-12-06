@@ -52,7 +52,7 @@ module.exports = class BittrexArbitrageDetector {
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             
             //Calculate quantity to buy
-            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["BTC-"+coin];
+            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_TRADE["BTC-"+coin];
             const qtyToBuyInBTC = qtyToBuyInCOIN * BTC_X_ASK;
 
             const grossBTCWin = qtyToBuyInBTC * (grossPercentageWin/100);
@@ -69,15 +69,15 @@ module.exports = class BittrexArbitrageDetector {
                 rateToBuy: BTC_X_ASK,
                 qtyToBuy: qtyToBuyInCOIN,
                 qtyToBuyInBasecoin: qtyToBuyInBTC,
-                grossPercentageWin: grossPercentageWin,
-                netPercentageWin: netPercentageWin,
-                grossBasecoinWin: grossBTCWin,
-                netBasecoinWin: netBTCWin
+                potentialGrossPercentageWin: grossPercentageWin,
+                potentialNetPercentageWin: netPercentageWin,
+                potentialGrossBasecoinWin: grossBTCWin,
+                potentialNetBasecoinWin: netBTCWin
             }
 
             this.counter++;
 
-            if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY (${this.counter}) : BTC-${opportunity.coin} -> ETH-${opportunity.coin} -> BTC-ETH +${opportunity.netPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
+            if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- ARBITRAGE OPPORTUNITY (${this.counter}) : BTC-${opportunity.coin} -> ETH-${opportunity.coin} -> BTC-ETH +${opportunity.potentialNetPercentageWin.toFixed(4)}%  (ID: ${opportunity.id}) -------------  \n`)
 
             return opportunity;
         }
@@ -127,7 +127,7 @@ module.exports = class BittrexArbitrageDetector {
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             
             //Calculate quantity to buy
-            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["ETH-"+coin];
+            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_TRADE["ETH-"+coin];
             const qtyToBuyInETH = qtyToBuyInCOIN * ETH_X_ASK;
 
             const grossETHWin = qtyToBuyInETH * (grossPercentageWin/100);
@@ -204,7 +204,7 @@ module.exports = class BittrexArbitrageDetector {
             //if (CONFIG.IS_DETECTOR_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- USDT-${coin} -> BTC-${coin} -> USDT-BTC  +${grossPercentageWin.toFixed(4)}% gross  -------------  \n`);
             
             //Calculate quantity to buy
-            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["BTC-"+coin];
+            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_TRADE["BTC-"+coin];
             const qtyToBuyInUSDT = qtyToBuyInCOIN * USDT_X_ASK;
 
             const grossUSDTWin = qtyToBuyInUSDT * (grossPercentageWin/100);
@@ -281,7 +281,7 @@ module.exports = class BittrexArbitrageDetector {
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             
             //Calculate quantity to buy
-            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["BTC-"+coin];
+            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_TRADE["BTC-"+coin];
             const qtyToBuyInUSDT = qtyToBuyInCOIN * USDT_X_ASK;
 
             const grossUSDTWin = qtyToBuyInUSDT * (grossPercentageWin/100);
@@ -371,7 +371,7 @@ module.exports = class BittrexArbitrageDetector {
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             
             //Calculate quantity to buy
-            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["BTC-"+coin];
+            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_TRADE["BTC-"+coin];
             const qtyToBuyInBTC = qtyToBuyInCOIN * BTC_X_ASK;
 
             const grossBTCWin = qtyToBuyInBTC * (grossPercentageWin/100);
@@ -418,7 +418,7 @@ module.exports = class BittrexArbitrageDetector {
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             
             //Calculate quantity to buy
-            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["BTC-"+coin];
+            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_TRADE["BTC-"+coin];
             const qtyToBuyInBTC = qtyToBuyInCOIN * BTC_X_ASK;
 
             const grossBTCWin = qtyToBuyInBTC * (grossPercentageWin/100);
@@ -465,7 +465,7 @@ module.exports = class BittrexArbitrageDetector {
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             
             //Calculate quantity to buy
-            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["ETH-"+coin];
+            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_TRADE["ETH-"+coin];
             const qtyToBuyInETH = qtyToBuyInCOIN * ETH_X_ASK;
 
             const grossETHWin = qtyToBuyInETH * (grossPercentageWin/100);
@@ -507,7 +507,7 @@ module.exports = class BittrexArbitrageDetector {
             //if (CONFIG.IS_LOG_ACTIVE) console.log(`\n WORKER#${WORKER_ID} : ---------- USDT-${coin} -> BTC-${coin} -> USDT-BTC  +${netPercentageWin.toFixed(4)}%  -------------  \n`);
             
             //Calculate quantity to buy
-            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["BTC-"+coin];
+            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_TRADE["BTC-"+coin];
             const qtyToBuyInUSDT = qtyToBuyInCOIN * USDT_X_ASK;
 
             const grossUSDTWin = qtyToBuyInUSDT * (grossPercentageWin/100);
@@ -549,7 +549,7 @@ module.exports = class BittrexArbitrageDetector {
             if (netPercentageWin < CONFIG.MIN_NET_PROFIT_PERCENTAGE) return;
             
             //Calculate quantity to buy
-            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_BUY["BTC-"+coin];
+            const qtyToBuyInCOIN = CONFIG.MIN_QTY_TO_TRADE["BTC-"+coin];
             const qtyToBuyInUSDT = qtyToBuyInCOIN * USDT_X_ASK;
 
             const grossUSDTWin = qtyToBuyInUSDT * (grossPercentageWin/100);

@@ -42,38 +42,86 @@ class BittrexSpreadEater {
         
         //init bittrex account
         //await this.bittrexAccountManager.init();
-        
+   
         this.buyQueue = async.queue(async (opportunity, cb) => {
             try {
-                const buyOrder = await this.bittrexExchangeService.buyLimitImmediateOrCancel(opportunity.pairToBuy, opportunity.rateToBuy, opportunity.qtyToBuy);
-                if ( !(buyOrder.QuantityBought > 0) ) return cb();
+                const buyOrder = await this.bittrexExchangeService.buyLimitGoodUntilCanceled(opportunity.pair, opportunity.buyRate, opportunity.qtyToBuy);
 
                 //Update opportunity
-                opportunity.buyOrder = buyOrder;
+                opportunity.buyOrders = opportunity.buyOrders ? opportunity.buyOrders : [];
+                opportunity.buyOrders.push(buyOrder); 
+
+                this.loggerService.createOrUpdateOpportunity(opportunity);
+
+                //if didnt buy
+                if ( !(buyOrder.QuantityBought > 0) ) {
+                    //cancel and recheck for new opportunity at same time
+                    const newOpportunityPromise = this.spreadOpportunityDetector.detectSpreadOpportunity(opportunity.pair);
+                    const cancelPromise = buyOrder.CancelInitiated ? Promise.resolve() : this.bittrexExchangeService.cancelOrder(buyOrder.OrderUuid);
+                    
+                    let newOpportunity, cancelResponse;
+                    [opportunity, cancelResponse] = await Promise.all([newOpportunityPromise, cancelPromise]);
+                    
+                    //If no more opportunity with this pair, dont rebuy
+                    if (!newOpportunity) return cb();
+
+                    newOpportunity.buyOrders = opportunity.buyOrders;
+                    this.buyQueue.unshift(newOpportunity);
+                    
+                    return cb();
+                }
+
+                //Update opportunity
                 opportunity.lastStep = "BUY";
+                buyOrder.qtyToSell = buyOrder.QuantityBought;
                 
-                this.sellQueue.push(opportunity);
+
+                this.sellQueue.push(opportunity, (err) => {
+                    if (!err) return;
+                    this.buyQueue.pause();
+                    console.error(`------- (WORKER#${WORKER_ID}) ERROR IN SELL QUEUE, PAUSING BUY QUEUE AND SHUTTING DOWN PROCESS --------`)
+                    console.error(err);
+                    process.exit();
+                });
+
+                this.loggerService.createOrUpdateOpportunity(opportunity);
+                
                 cb();
             } catch (e) {
-                console.error(`!!! Error in BuyQueue !!! \n \n ${JSON.stringify(e)}`);
+                console.error(`!!! (WORKER#${WORKER_ID}) Error in BuyQueue !!! \n \n ${JSON.stringify(e)}`);
                 cb(e);
             }
         }, CONFIG.BUY_CONCURENCY);
 
         this.sellQueue = async.queue(async (opportunity, cb) => {
             try {
-                //TODO CHECK SELL CONDITION
-                const sellOrder = await this.bittrexExchangeService.sellLimitConditional(opportunity.pairToSell, opportunity.rateToSell, opportunity.qtyToSell);
-                if ( !(sellOrder.QuantitySold > 0) ) return cb();
+                const sellOrder = await this.bittrexExchangeService.sellLimitGoodUntilCanceled(opportunity.pair, opportunity.sellRate, opportunity.qtyToSell);
 
                 //Update opportunity
-                opportunity.sellOrder = sellOrder;
-                opportunity.lastStep = "SELL";
+                opportunity.sellOrders = opportunity.sellOrders ? opportunity.sellOrders : [];
+                opportunity.sellOrders.push(sellOrder); 
 
-                this.convertQueue.push(opportunity);
+                //If everything is sold
+                if (sellOrder.QuantityRemaining < CONFIG.MIN_QTY_TO_TRADE[opportunity.pair]) {
+                    opportunity.lastStep = "SELL";
+                    this.loggerService.createOrUpdateOpportunity(opportunity);
+                    return cb();
+                }
+
+                //If sold partially
+                opportunity.lastStep = "SELL_PARTIAL";
+                this.loggerService.createOrUpdateOpportunity(opportunity);
+                //Set new quantity to sell
+                opportunity.qtyToSell = sellOrder.QuantityRemaining;
+                //Calculate new sellRate (remove 5% of the spread)
+                opportunity.sellRate -=  opportunity.spread * 0.05;
+                
+                //push back to sell queue as first
+                this.sellQueue.unshift(opportunity);
+                
                 cb();
             } catch (e) {
-                console.error(`!!! Error in SellQueue !!! \n \n ${JSON.stringify(e)}`);
+                console.error(`!!! (WORKER#${WORKER_ID}) Error in SellQueue !!! \n \n ${JSON.stringify(e)}`);
                 cb(e)
             }
         }, CONFIG.SELL_CONCURENCY);
@@ -83,25 +131,17 @@ class BittrexSpreadEater {
     startMonitoring() {
         
         if (this.isMonitoring) return;
-        const ProgressBar = require('progress');
-        let consoleLogger = null;
-        let sumNetPercentageProfit = 0;
-        let opportunitiesCount = 0;
-        if (!CONFIG.IS_LOG_ACTIVE) consoleLogger = new ProgressBar(`WORKER#${WORKER_ID} : [:avgNetProfitPercentage] :rate opportunities/s (Total: :current since :elapsed s)`, { total: 999999999999 });
 
         const monitorPairs = () => {
-            async.eachLimit(this.pairs, 16, async (pair, cb) => {
+            async.eachLimit(this.pairs, 8, async (pair, cb) => {
                 const opportunity = await this.spreadOpportunityDetector.detectSpreadOpportunity(pair);
-                if (!CONFIG.IS_LOG_ACTIVE && opportunity) consoleLogger.tick({avgNetProfitPercentage: (sumNetPercentageProfit+=opportunity.netProfitPercentage) / (opportunitiesCount++)})
                 //if (opportunity) this.buyQueue.push(opportunity);
-                //cb();
+                
             }, (err) => {
                 if (!err) return monitorPairs(); //reloop
-                console.error(`ERROR IN monitorPairs()`, JSON.stringify(err));
+                console.error(`(WORKER#${WORKER_ID}) ERROR IN monitorPairs()`, err);
             });
         }
-
-        
 
         this.isMonitoring = true;
 
@@ -113,7 +153,7 @@ class BittrexSpreadEater {
 
 
 const cluster = require('cluster');
-const numWorkers = 4; // require('os').cpus().length;
+const numWorkers = 1; // require('os').cpus().length;
 
 //USE MULTIPLE CORES
 if(cluster.isMaster) {
@@ -122,7 +162,11 @@ if(cluster.isMaster) {
     
     async function prepareWorkers() {
         const bittrexExchangeService = new BittrexExchangeService();
-        const ALL_BITTREX_PAIRS = await bittrexExchangeService.getAllPairs();
+        let ALL_BITTREX_PAIRS = await bittrexExchangeService.getMarketSummaries();
+        //Sort by volume
+        ALL_BITTREX_PAIRS = ALL_BITTREX_PAIRS.sort((a, b) => b.Volume - a.Volume);
+        //Keep the X first ones
+        ALL_BITTREX_PAIRS = ALL_BITTREX_PAIRS.slice(0, 32).map(p => p.MarketName);
 
         const ALL_BITTREX_PAIRS_CHUNKED = _.chunk(ALL_BITTREX_PAIRS, ALL_BITTREX_PAIRS.length / numWorkers);
         
