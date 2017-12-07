@@ -10,6 +10,7 @@ bittrex.options({
   'inverse_callback_arguments' : true
 });
 
+const async = require('async');
 const EventEmitter = require('events');
 const ProgressBar = require('progress');
 
@@ -124,7 +125,7 @@ module.exports = class BittrexExchangeService {
                 Target: 0, // used in conjunction with ConditionType
             });
             if (!buyOrder.success) throw new Error(buyOrder.message);
-            const buyOrderStatus = await this.getClosedOrder(buyOrder.result.uuid);
+            const buyOrderStatus = await this.getOrder(buyOrder.result.uuid);
             if (CONFIG.IS_LOG_ACTIVE) console.log("SELL MARKET ORDER RESPONSE:", buyOrderStatus);
             if (buyOrderStatus.success) {
                 buyOrderStatus.result.QuantityBought = buyOrderStatus.result.Quantity - buyOrderStatus.result.QuantityRemaining;
@@ -146,7 +147,7 @@ module.exports = class BittrexExchangeService {
                 Target: 0, // used in conjunction with ConditionType
             });
             if (!buyOrder.success) throw new Error(buyOrder.message);
-            const buyOrderStatus = await this.getClosedOrder(buyOrder.result.uuid);
+            const buyOrderStatus = await this.getOrder(buyOrder.result.uuid);
             if (CONFIG.IS_LOG_ACTIVE) console.log("SELL MARKET ORDER RESPONSE:", buyOrderStatus);
             if (buyOrderStatus.success) {
                 buyOrderStatus.result.QuantityBought = buyOrderStatus.result.Quantity - buyOrderStatus.result.QuantityRemaining;
@@ -168,7 +169,7 @@ module.exports = class BittrexExchangeService {
                 Target: 0, // used in conjunction with ConditionType
         });
         if (!buyOrder.success) throw new Error(buyOrder.message);
-        const buyOrderStatus = await this.getClosedOrder(buyOrder.result.uuid);
+        const buyOrderStatus = await this.getOrder(buyOrder.result.uuid);
         if (CONFIG.IS_LOG_ACTIVE) console.log("SELL MARKET ORDER RESPONSE:", buyOrderStatus);
         if (buyOrderStatus.success) {
             buyOrderStatus.result.QuantityBought = buyOrderStatus.result.Quantity - buyOrderStatus.result.QuantityRemaining;
@@ -189,7 +190,7 @@ module.exports = class BittrexExchangeService {
             Target: target, // used in conjunction with ConditionType
         });
         if (!buyOrder.success) throw new Error(buyOrder.message);
-        const buyOrderStatus = await this.getClosedOrder(buyOrder.result.uuid);
+        const buyOrderStatus = await this.getOrder(buyOrder.result.uuid);
         if (CONFIG.IS_LOG_ACTIVE) console.log("BUY CONDITIONAL ORDER RESPONSE:", buyOrderStatus);
         if (buyOrderStatus.success) {
             buyOrderStatus.result.QuantityBought = buyOrderStatus.result.Quantity - buyOrderStatus.result.QuantityRemaining;
@@ -210,7 +211,7 @@ module.exports = class BittrexExchangeService {
                 Target: 0, // used in conjunction with ConditionType
             });
             if (!sellOrder.success) throw new Error(sellOrder.message);
-            const sellOrderStatus = await this.getClosedOrder(sellOrder.result.uuid);
+            const sellOrderStatus = await this.getOrder(sellOrder.result.uuid);
             if (CONFIG.IS_LOG_ACTIVE) console.log("SELL MARKET ORDER RESPONSE:", sellOrderStatus);
             if (sellOrderStatus.success) {
                 sellOrderStatus.result.QuantitySold = sellOrderStatus.result.Quantity - sellOrderStatus.result.QuantityRemaining;
@@ -232,7 +233,7 @@ module.exports = class BittrexExchangeService {
                 Target: 0, // used in conjunction with ConditionType
         });
         if (!sellOrder.success) throw new Error(sellOrder.message);
-        const sellOrderStatus = await this.getClosedOrder(sellOrder.result.uuid);
+        const sellOrderStatus = await this.getOrder(sellOrder.result.uuid);
         if (CONFIG.IS_LOG_ACTIVE) console.log("SELL MARKET ORDER RESPONSE:", sellOrderStatus);
         if (sellOrderStatus.success) {
             sellOrderStatus.result.QuantitySold = sellOrderStatus.result.Quantity - sellOrderStatus.result.QuantityRemaining;
@@ -253,7 +254,7 @@ module.exports = class BittrexExchangeService {
                 Target: 0, // used in conjunction with ConditionType
         });
         if (!sellOrder.success) throw new Error(sellOrder.message);
-        const sellOrderStatus = await this.getClosedOrder(sellOrder.result.uuid);
+        const sellOrderStatus = await this.getOrder(sellOrder.result.uuid);
         if (CONFIG.IS_LOG_ACTIVE) console.log("SELL MARKET ORDER RESPONSE:", sellOrderStatus);
         if (sellOrderStatus.success) {
             sellOrderStatus.result.QuantitySold = sellOrderStatus.result.Quantity - sellOrderStatus.result.QuantityRemaining;
@@ -273,7 +274,7 @@ module.exports = class BittrexExchangeService {
             Target: target, // used in conjunction with ConditionType
         });
         if (!sellOrder.success) throw new Error(sellOrder.message);
-        const sellOrderStatus = await this.getClosedOrder(sellOrder.result.uuid);
+        const sellOrderStatus = await this.getOrder(sellOrder.result.uuid);
         if (CONFIG.IS_LOG_ACTIVE) console.log("SELL CONDITIONAL ORDER RESPONSE:", sellOrderStatus);
         if (sellOrderStatus.success) {
             sellOrderStatus.result.QuantityBought = sellOrderStatus.result.Quantity - sellOrderStatus.result.QuantityRemaining;
@@ -282,21 +283,46 @@ module.exports = class BittrexExchangeService {
         throw new Error(sellOrderStatus.message);
     }
 
-    async cancelOrder(orderId) {
+    /**
+     * Get the order and doesn't return it until it's closed (multiple retries)
+     * 
+     * @param {*} orderId 
+     * @param {*} retries
+     * @param {*} intervalInMs
+     */
+    cancelOrder(orderId, retries = 5, intervalInMs = 2) {
         
-        const cancelOrder = await bittrex.cancelAsync({uuid: orderId});        
-        if (CONFIG.IS_LOG_ACTIVE) console.log("CANCEL ORDER RESPONSE:", cancelOrder);
-        if (cancelOrder.success) return cancelOrder.result;
-        throw new Error(cancelOrder.message);
+        const cancelOrder = async () => {
+            const cancelResponse = await this.cancelOrder(orderId);
+            const orderStatus = await this.getOrder(orderId);
+            if (orderStatus.CancelInitiated) return await this.getClosedOrder(orderId, 30, 100);
+            throw new Error("Order Not Canceled");
+        }
+
+        return new Promise((resolve, reject) => {
+            async.retry({times: retries, interval: intervalInMs}, cancelOrder, (err, order) => {
+                if (err) return reject(err);
+                return resolve(order);
+            })
+        });
 
     }
 
-    async getOrder(orderId) {
+    async getOrder(orderId, retries = 5, intervalInMs = 1) {
         
-        const order = await bittrex.getorderAsync({uuid: orderId});
-        if (CONFIG.IS_LOG_ACTIVE) console.log("GET ORDER RESPONSE:", order);
-        if (order.success) return order.result;
-        throw new Error(order.message);
+        const getOrder = async () => {
+            const order = await bittrex.getorderAsync({uuid: orderId});
+            if (CONFIG.IS_LOG_ACTIVE) console.log("GET ORDER RESPONSE:", order);
+            if (order.success) return order.result;
+            throw new Error(order.message);
+        }
+
+        return new Promise((resolve, reject) => {
+            async.retry({times: retries, interval: intervalInMs}, getOrder, (err, order) => {
+                if (err) return reject(err);
+                return resolve(order);
+            })
+        });
                 
     }
 
@@ -304,28 +330,23 @@ module.exports = class BittrexExchangeService {
      * Get the order and doesn't return it until it's closed (recursive call)
      * 5 trials
      * @param {*} orderId 
-     * @param {*} trials 
+     * @param {*} retries
+     * @param {*} intervalInMs
      */
-    async getClosedOrder(orderId, trials = 0) {
+    getClosedOrder(orderId, retries = 5, intervalInMs = 5) {
         
-        const order = await this.getOrder(orderId);
-        if (order.isOpen === false) return order; 
-        const MAX_TRIALS = 5;
-        if (trials < MAX_TRIALS) {
-            trials += 1;
-            return this.getClosedOrder(orderId, trials);
+        const getClosedOrders = async () => {
+            const order = await this.getOrder(orderId);
+            if (order.isOpen === false) return order; 
+            throw new Error("Order Not Closed Yet");
         }
+
+        return new Promise((resolve, reject) => {
+            async.retry({times: retries, interval: intervalInMs}, getClosedOrders, (err, order) => {
+                if (err) return reject(err);
+                return resolve(order);
+            });
+        });
     }
-
-    /**
-     * 
-     * @param {*} pair 
-     * @param {*} rate 
-     * @param {*} qty 
-     */
-    async outbid(pair, rate, qty) {
-
-    }
-
 
 }
